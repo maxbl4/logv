@@ -7,7 +7,15 @@
       "Bash(dotnet publish:*)",
       "Bash(cmd /c \"dir C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\bin\\\\Release\\\\net10.0-windows\\\\win-x64\\\\publish\\\\\")",
       "Bash(dotnet --version && ls C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\.vscode 2>/dev/null || echo \"no .vscode dir\")",
-      "Bash(cat C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\.vscode\\\\launch.json 2>/dev/null; echo \"EXIT:$?\")"
+      "Bash(cat C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\.vscode\\\\launch.json 2>/dev/null; echo \"EXIT:$?\")",
+      "Bash(cat > 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\UI\\\\DirectoryTabView.xaml' << 'EOF'\n<UserControl x:Class=\"lgv.UI.DirectoryTabView\"\n             xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"\n             xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"\n             Background=\"#FF1E1E1E\">\n    <Grid>\n        <TabControl x:Name=\"FileTabControl\"\n                    Background=\"#FF1E1E1E\"\n                    BorderBrush=\"#FF3F3F3F\"\n                    ItemContainerStyle=\"{StaticResource DarkTabItemStyle}\"\n                    SelectionChanged=\"FileTabControl_SelectionChanged\"/>\n    </Grid>\n</UserControl>\nEOF)",
+      "Bash(dotnet new:*)",
+      "Bash(cmd /c \"dir /ad C:\\\\Users\\\\Max\\\\src\" 2>&1)",
+      "Bash(cmd /c \"dir /ad C:\\\\Users\\\\Max\\\\src\\\\lgv\" 2>&1)",
+      "Bash(powershell -NoProfile -Command \"\nNew-Item -ItemType Directory -Path 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App' -Force | Out-Null\n'Core','Highlighting','Search','Filter','UI' | ForEach-Object { Move-Item \\\\\"C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\$_\\\\\" 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App\\\\' -Force }\n'lgv.csproj','App.xaml','App.xaml.cs' | ForEach-Object { Move-Item \\\\\"C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\$_\\\\\" 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App\\\\' -Force }\nWrite-Host 'Done'\n\" 2>&1)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\move.ps1' 2>&1)",
+      "Bash(dotnet sln:*)",
+      "Bash(powershell -NoProfile -Command \"Remove-Item 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\move.ps1'\" 2>&1\ndotnet build lgv.sln 2>&1 | grep -E \"error|warning|succeeded|failed\")"
     ]
   }
 }

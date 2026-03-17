@@ -27,7 +27,7 @@ public partial class LogViewerControl : WpfUserControl
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _filterCts;
     private readonly DispatcherTimer _searchDebounce;
-    private readonly DispatcherTimer _filterDebounce;
+    private string[] _activeFilterPatterns = [];
     private LogColorizer? _colorizer;
 
     // Events for MainWindow status bar
@@ -42,9 +42,6 @@ public partial class LogViewerControl : WpfUserControl
 
         _searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _searchDebounce.Tick += (_, _) => { _searchDebounce.Stop(); RunSearch(); };
-
-        _filterDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-        _filterDebounce.Tick += (_, _) => { _filterDebounce.Stop(); RunFilter(); };
 
         Editor.TextArea.TextView.BackgroundRenderers.Add(_searchRenderer);
 
@@ -67,14 +64,11 @@ public partial class LogViewerControl : WpfUserControl
         Editor.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
         Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDC, 0xDC, 0xDC));
         Editor.LineNumbersForeground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x85, 0x85, 0x85));
-
-        // No built-in syntax highlighting - we use our own colorizer
         Editor.SyntaxHighlighting = null;
     }
 
     private void SetupColorizer()
     {
-        // Remove old colorizer if present
         var toRemove = Editor.TextArea.TextView.LineTransformers
             .OfType<LogColorizer>().ToList();
         foreach (var c in toRemove)
@@ -86,7 +80,6 @@ public partial class LogViewerControl : WpfUserControl
             Editor.TextArea.TextView.LineTransformers.Add(_colorizer);
         }
 
-        // Apply font settings
         Editor.FontFamily = new System.Windows.Media.FontFamily(Settings.FontFamily);
         Editor.FontSize = Settings.FontSize;
     }
@@ -141,21 +134,9 @@ public partial class LogViewerControl : WpfUserControl
             SearchRegexChk.IsChecked = saved.SearchUseRegex;
         }
 
-        if (!string.IsNullOrEmpty(saved.FilterQuery))
-        {
-            FilterBox.Text = saved.FilterQuery;
-            FilterRegexChk.IsChecked = saved.FilterUseRegex;
-            if (saved.FilterMode == "Exclude")
-            {
-                FilterModeBtn.IsChecked = true;
-                FilterModeBtn.Content = "Exclude";
-            }
-        }
-
         _state.AutoScroll = saved.AutoScroll;
         _state.ScrollOffset = saved.ScrollOffset;
 
-        // Restore scroll position after content is loaded
         Dispatcher.InvokeAsync(() =>
         {
             if (saved.ScrollOffset > 0)
@@ -177,9 +158,6 @@ public partial class LogViewerControl : WpfUserControl
             SearchQuery = SearchBox.Text,
             SearchCaseSensitive = SearchCaseChk.IsChecked == true,
             SearchUseRegex = SearchRegexChk.IsChecked == true,
-            FilterQuery = FilterBox.Text,
-            FilterMode = FilterModeBtn.IsChecked == true ? "Exclude" : "Include",
-            FilterUseRegex = FilterRegexChk.IsChecked == true,
             AutoScroll = _state.AutoScroll,
             WatchNewFiles = _state.DirectoryPath is not null
         };
@@ -197,11 +175,10 @@ public partial class LogViewerControl : WpfUserControl
     {
         _state.OriginalText += newText;
 
-        if (_state.FilterActive && !string.IsNullOrEmpty(_state.FilterQuery))
+        if (_activeFilterPatterns.Length > 0)
         {
-            // Rebuild filter in background
-            _filterDebounce.Stop();
-            _filterDebounce.Start();
+            // Re-run filter to incorporate new content
+            RunGlobalFilter(_activeFilterPatterns);
             return;
         }
 
@@ -222,7 +199,6 @@ public partial class LogViewerControl : WpfUserControl
             Editor.Select(savedSelStart, savedSelLen);
         }
 
-        // Re-run search if active
         if (!string.IsNullOrEmpty(SearchBox.Text))
         {
             _searchDebounce.Stop();
@@ -240,6 +216,59 @@ public partial class LogViewerControl : WpfUserControl
         UpdateStatusBar();
     }
 
+    // Called by MainWindow to apply/update the global filter
+    public void ApplyGlobalFilter(string[] patterns)
+    {
+        _activeFilterPatterns = patterns;
+        RunGlobalFilter(patterns);
+    }
+
+    private void RunGlobalFilter(string[] patterns)
+    {
+        _filterCts?.Cancel();
+        _filterCts = new CancellationTokenSource();
+        var ct = _filterCts.Token;
+        var originalText = _state.OriginalText;
+
+        if (patterns.Length == 0)
+        {
+            var scrollViewer = FindScrollViewer(Editor);
+            double savedOffset = scrollViewer?.VerticalOffset ?? 0;
+            Editor.Document.Text = originalText;
+            if (!_state.AutoScroll)
+                scrollViewer?.ScrollToVerticalOffset(savedOffset);
+            UpdateStatusBar();
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            LineFilter.FilterResult result;
+            try
+            {
+                result = LineFilter.Apply(originalText, patterns);
+                ct.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException) { return; }
+
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (ct.IsCancellationRequested) return;
+
+                var scrollViewer = FindScrollViewer(Editor);
+                double savedOffset = scrollViewer?.VerticalOffset ?? 0;
+                Editor.Document.Text = result.FilteredText;
+
+                if (_state.AutoScroll)
+                    Editor.ScrollToEnd();
+                else
+                    scrollViewer?.ScrollToVerticalOffset(savedOffset);
+
+                UpdateStatusBar();
+            });
+        }, ct);
+    }
+
     public void ToggleSearch()
     {
         if (SearchBar.Visibility == Visibility.Visible)
@@ -252,21 +281,6 @@ public partial class LogViewerControl : WpfUserControl
             SearchBar.Visibility = Visibility.Visible;
             SearchBox.Focus();
             SearchBox.SelectAll();
-        }
-    }
-
-    public void ToggleFilter()
-    {
-        if (FilterBar.Visibility == Visibility.Visible)
-        {
-            FilterBar.Visibility = Visibility.Collapsed;
-            DeactivateFilter();
-        }
-        else
-        {
-            FilterBar.Visibility = Visibility.Visible;
-            FilterBox.Focus();
-            FilterBox.SelectAll();
         }
     }
 
@@ -332,70 +346,6 @@ public partial class LogViewerControl : WpfUserControl
         Editor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Background);
         SearchCountLabel.Content = "0 of 0";
         TickCanvas.Children.Clear();
-    }
-
-    private void RunFilter()
-    {
-        _filterCts?.Cancel();
-        _filterCts = new CancellationTokenSource();
-        var ct = _filterCts.Token;
-        var pattern = FilterBox.Text;
-        var mode = FilterModeBtn.IsChecked == true ? FilterMode.Exclude : FilterMode.Include;
-        var useRegex = FilterRegexChk.IsChecked == true;
-        var originalText = _state.OriginalText;
-
-        if (string.IsNullOrEmpty(pattern))
-        {
-            DeactivateFilter();
-            return;
-        }
-
-        Task.Run(() =>
-        {
-            LineFilter.FilterResult result;
-            try
-            {
-                result = LineFilter.Apply(originalText, pattern, mode, useRegex);
-                ct.ThrowIfCancellationRequested();
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            Dispatcher.InvokeAsync(() =>
-            {
-                if (ct.IsCancellationRequested) return;
-
-                var scrollViewer = FindScrollViewer(Editor);
-                double savedOffset = scrollViewer?.VerticalOffset ?? 0;
-
-                Editor.Document.Text = result.FilteredText;
-                _state.FilterActive = true;
-                _state.FilterQuery = pattern;
-
-                int lineCount = result.LineMap.Length;
-                FilterStatusLabel.Content = $"{lineCount} lines";
-
-                if (!_state.AutoScroll)
-                    scrollViewer?.ScrollToVerticalOffset(savedOffset);
-            });
-        }, ct);
-    }
-
-    private void DeactivateFilter()
-    {
-        _state.FilterActive = false;
-        _state.FilterQuery = "";
-
-        var scrollViewer = FindScrollViewer(Editor);
-        double savedOffset = scrollViewer?.VerticalOffset ?? 0;
-
-        Editor.Document.Text = _state.OriginalText;
-        FilterStatusLabel.Content = "";
-
-        if (!_state.AutoScroll)
-            scrollViewer?.ScrollToVerticalOffset(savedOffset);
     }
 
     public void NavigateToMatch(int index)
@@ -511,12 +461,6 @@ public partial class LogViewerControl : WpfUserControl
             e.Handled = true;
             ToggleSearch();
         }
-        else if (e.Key == Key.F && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
-                 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
-        {
-            e.Handled = true;
-            ToggleFilter();
-        }
         else if (e.Key == Key.G && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             e.Handled = true;
@@ -529,7 +473,7 @@ public partial class LogViewerControl : WpfUserControl
         }
     }
 
-    private void ReloadFile()
+    public void ReloadFile()
     {
         if (_state.FilePath is null) return;
         _state.Tailer?.Dispose();
@@ -587,66 +531,4 @@ public partial class LogViewerControl : WpfUserControl
 
     private void SearchNextBtn_Click(object sender, RoutedEventArgs e) => NavigateNext();
     private void SearchPrevBtn_Click(object sender, RoutedEventArgs e) => NavigatePrev();
-
-    private void FilterBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        _filterDebounce.Stop();
-        _filterDebounce.Start();
-    }
-
-    private void FilterBox_KeyDown(object sender, WpfKeyEventArgs e)
-    {
-        if (e.Key == Key.Escape)
-        {
-            FilterBar.Visibility = Visibility.Collapsed;
-            DeactivateFilter();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Enter)
-        {
-            RunFilter();
-            e.Handled = true;
-        }
-    }
-
-    private void FilterRegexChk_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!string.IsNullOrEmpty(FilterBox.Text))
-        {
-            _filterDebounce.Stop();
-            _filterDebounce.Start();
-        }
-    }
-
-    private void FilterModeBtn_Checked(object sender, RoutedEventArgs e)
-    {
-        FilterModeBtn.Content = "Exclude";
-        if (!string.IsNullOrEmpty(FilterBox.Text))
-        {
-            _filterDebounce.Stop();
-            _filterDebounce.Start();
-        }
-    }
-
-    private void FilterModeBtn_Unchecked(object sender, RoutedEventArgs e)
-    {
-        FilterModeBtn.Content = "Include";
-        if (!string.IsNullOrEmpty(FilterBox.Text))
-        {
-            _filterDebounce.Stop();
-            _filterDebounce.Start();
-        }
-    }
-
-    private void FilterCloseBtn_Click(object sender, RoutedEventArgs e)
-    {
-        FilterBar.Visibility = Visibility.Collapsed;
-        DeactivateFilter();
-    }
-
-    private void FilterClearBtn_Click(object sender, RoutedEventArgs e)
-    {
-        FilterBox.Text = "";
-        DeactivateFilter();
-    }
 }

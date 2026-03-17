@@ -6,11 +6,22 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/Debug/net10.0-windows/lgv.exe",
+            "program": "${workspaceFolder}/lgv.App/bin/Debug/net10.0-windows/lgv.exe",
             "args": [],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/lgv.App",
             "stopAtEntry": false,
             "console": "internalConsole"
+        },
+        {
+            "name": "Run (lgv.TestGen)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-testgen",
+            "program": "${workspaceFolder}/lgv.TestGen/bin/Debug/net10.0/lgv.TestGen.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/lgv.TestGen/bin/Debug/net10.0",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
         }
     ]
 }

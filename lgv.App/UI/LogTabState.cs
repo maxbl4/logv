@@ -1,5 +1,4 @@
 using lgv.Core;
-using lgv.Filter;
 
 namespace lgv.UI;
 
@@ -18,11 +17,7 @@ public class LogTabState : IDisposable
     public bool SearchCaseSensitive { get; set; }
     public bool SearchUseRegex { get; set; }
     public int SearchCurrentIndex { get; set; }
-    public string FilterQuery { get; set; } = "";
-    public FilterMode FilterMode { get; set; } = FilterMode.Include;
-    public bool FilterUseRegex { get; set; }
     public bool AutoScroll { get; set; }
-    public bool FilterActive { get; set; }
 
     // Document state
     public string OriginalText { get; set; } = "";

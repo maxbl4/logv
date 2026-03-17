@@ -5,7 +5,10 @@
         Width="1200" Height="800"
         MinWidth="640" MinHeight="400"
         Background="#FF1E1E1E"
-        Foreground="#FFDCDCDC">
+        Foreground="#FFDCDCDC"
+        AllowDrop="True"
+        Drop="Window_Drop"
+        DragOver="Window_DragOver">
 
     <Window.Resources>
         <Style TargetType="Menu">
@@ -79,6 +82,9 @@
                 <MenuItem Header="Open _Directory..." InputGestureText="Ctrl+Shift+O"
                           Click="OpenDirectoryMenu_Click"/>
                 <Separator Background="#FF3F3F3F"/>
+                <MenuItem Header="_Reload File" InputGestureText="F5"
+                          Click="ReloadFileMenu_Click"/>
+                <Separator Background="#FF3F3F3F"/>
                 <MenuItem Header="Close Tab" InputGestureText="Ctrl+W"
                           Click="CloseTabMenu_Click"/>
                 <Separator Background="#FF3F3F3F"/>
@@ -90,14 +96,30 @@
                           IsCheckable="True"
                           IsChecked="True"
                           Click="ToggleHighlighting_Click"/>
-                <MenuItem Header="Toggle _AutoScroll"
+                <MenuItem Header="Toggle _AutoScroll" InputGestureText="Ctrl+T"
                           x:Name="ToggleAutoScrollMenuItem"
                           IsCheckable="True"
                           IsChecked="False"
                           Click="ToggleAutoScroll_Click"/>
+                <MenuItem Header="Toggle _Directory Watch" InputGestureText="Ctrl+D"
+                          x:Name="ToggleDirWatchMenuItem"
+                          IsCheckable="True"
+                          IsChecked="True"
+                          Click="ToggleDirWatchMenu_Click"/>
                 <Separator Background="#FF3F3F3F"/>
                 <MenuItem Header="Go To _Line..." InputGestureText="Ctrl+G"
                           Click="GoToLineMenu_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Search" Background="#FF2D2D2D" Foreground="#FFDCDCDC">
+                <MenuItem Header="_Find..." InputGestureText="Ctrl+F"
+                          Click="FindMenu_Click"/>
+                <MenuItem Header="_Filter..." InputGestureText="Ctrl+Shift+F"
+                          Click="FilterMenu_Click"/>
+                <Separator Background="#FF3F3F3F"/>
+                <MenuItem Header="_Next Match" InputGestureText="F3"
+                          Click="NextMatchMenu_Click"/>
+                <MenuItem Header="_Previous Match" InputGestureText="Shift+F3"
+                          Click="PrevMatchMenu_Click"/>
             </MenuItem>
         </Menu>
 
@@ -164,27 +186,98 @@
             </StatusBarItem>
         </StatusBar>
 
-        <!-- Tab control -->
-        <TabControl x:Name="TabControl"
-                    Background="#FF1E1E1E"
+        <!-- Tab + global filter panel -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition x:Name="GlobalFilterSplitterRow" Height="0"/>
+                <RowDefinition x:Name="GlobalFilterPanelRow" Height="0" MinHeight="0"/>
+            </Grid.RowDefinitions>
+
+            <!-- Tab control (level 1: direct files and directory containers) -->
+            <TabControl x:Name="TabControl"
+                        Grid.Row="0"
+                        Background="#FF1E1E1E"
+                        BorderBrush="#FF3F3F3F"
+                        ItemContainerStyle="{StaticResource DarkTabItemStyle}"
+                        SelectionChanged="TabControl_SelectionChanged"/>
+
+            <!-- Global filter splitter -->
+            <GridSplitter x:Name="GlobalFilterSplitter"
+                          Grid.Row="1"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          ResizeDirection="Rows"
+                          ResizeBehavior="PreviousAndNext"
+                          Background="#FF555555"
+                          Cursor="SizeNS"
+                          Visibility="Collapsed"/>
+
+            <!-- Global filter panel -->
+            <Border x:Name="GlobalFilterPanel"
+                    Grid.Row="2"
+                    Background="#FF252526"
                     BorderBrush="#FF3F3F3F"
-                    SelectionChanged="TabControl_SelectionChanged">
-            <TabControl.ItemContainerStyle>
-                <Style TargetType="TabItem">
-                    <Setter Property="Background" Value="#FF2D2D2D"/>
-                    <Setter Property="Foreground" Value="#FFAAAAAA"/>
-                    <Setter Property="BorderBrush" Value="#FF3F3F3F"/>
-                    <Setter Property="BorderThickness" Value="1,1,1,0"/>
-                    <Setter Property="Padding" Value="0"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#FF1E1E1E"/>
-                            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </TabControl.ItemContainerStyle>
-        </TabControl>
+                    BorderThickness="0,1,0,0"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0"
+                               Background="#FF2D2D2D"
+                               LastChildFill="False"
+                               Margin="0,0,0,1">
+                        <Button x:Name="GlobalFilterCloseBtn"
+                                DockPanel.Dock="Left"
+                                Style="{StaticResource ToolbarButton}"
+                                Content="✕"
+                                Width="24"
+                                Margin="4,3,0,3"
+                                Click="GlobalFilterCloseBtn_Click"
+                                ToolTip="Close filter (Escape)"/>
+                        <Label DockPanel.Dock="Left"
+                               Content="Filter Patterns"
+                               FontWeight="SemiBold"
+                               Margin="4,0"/>
+                        <Label DockPanel.Dock="Left"
+                               Content="(one regex per line — excludes matching lines, # = comment)"
+                               Foreground="#FF777777"
+                               FontSize="11"/>
+                        <Button x:Name="GlobalFilterClearBtn"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource ToolbarButton}"
+                                Content="Clear"
+                                Margin="4,3"
+                                Click="GlobalFilterClearBtn_Click"/>
+                        <Label x:Name="GlobalFilterStatusLabel"
+                               DockPanel.Dock="Right"
+                               MinWidth="140"
+                               HorizontalContentAlignment="Right"/>
+                    </DockPanel>
+
+                    <TextBox x:Name="GlobalFilterBox"
+                             Grid.Row="1"
+                             Background="#FF3C3C3C"
+                             Foreground="#FFDCDCDC"
+                             BorderBrush="#FF555555"
+                             CaretBrush="#FFDCDCDC"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             VerticalContentAlignment="Top"
+                             Padding="6,4"
+                             BorderThickness="0"
+                             TextChanged="GlobalFilterBox_TextChanged"
+                             KeyDown="GlobalFilterBox_KeyDown"/>
+                </Grid>
+            </Border>
+        </Grid>
 
     </DockPanel>
 </Window>

@@ -10,6 +10,7 @@ public sealed class DirectoryMonitor : IDisposable
     private bool _disposed;
 
     public event EventHandler<string>? NewFileDetected;
+    public event EventHandler<(string OldPath, string NewPath)>? FileRenamed;
 
     public DirectoryMonitor(string directoryPath)
     {
@@ -70,7 +71,17 @@ public sealed class DirectoryMonitor : IDisposable
 
     private void OnRenamedEvent(object sender, RenamedEventArgs e)
     {
-        CheckForNewerFile(e.FullPath);
+        // Always treat a rename as a new file — renaming doesn't change LastWriteTime
+        // so the timestamp check would silently skip it.
+        try
+        {
+            var fi = new FileInfo(e.FullPath);
+            if (fi.Exists)
+                _newestTimestamp = fi.LastWriteTime;
+        }
+        catch { }
+
+        FileRenamed?.Invoke(this, (e.OldFullPath, e.FullPath));
     }
 
     private void CheckForNewerFile(string fullPath)

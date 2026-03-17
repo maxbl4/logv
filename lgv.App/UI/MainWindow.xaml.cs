@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using lgv.Core;
 
 // WinForms ambiguity aliases
@@ -21,6 +22,8 @@ namespace lgv.UI;
 public partial class MainWindow : Window
 {
     private AppSettings _settings = SettingsStore.Current;
+    private readonly DispatcherTimer _filterDebounce;
+    private double _filterPanelHeight = 150;
 
     // Commands for key bindings
     public ICommand OpenFileCommand { get; }
@@ -37,11 +40,15 @@ public partial class MainWindow : Window
         ToggleAutoScrollCommand = new RelayCommand(_ => ToggleAutoScroll());
         ToggleDirWatchCommand = new RelayCommand(_ => ToggleDirWatch());
 
+        _filterDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _filterDebounce.Tick += (_, _) => { _filterDebounce.Stop(); OnFilterChanged(); };
+
         InitializeComponent();
 
         WatchDirToggle.IsChecked = _settings.WatchDirectoryEnabled;
         WatchDirToggle.Content = _settings.WatchDirectoryEnabled ? "Watch Dir: ON" : "Watch Dir: OFF";
         ToggleHighlightingMenuItem.IsChecked = _settings.HighlightingEnabled;
+        ToggleDirWatchMenuItem.IsChecked = _settings.WatchDirectoryEnabled;
 
         // Set poll interval combo
         foreach (ComboBoxItem item in PollIntervalCombo.Items)
@@ -72,24 +79,21 @@ public partial class MainWindow : Window
         {
             if (!string.IsNullOrEmpty(tabState.DirectoryPath))
             {
-                var tabItem = CreateTabItem(tabState.DirectoryPath, isDirectory: true);
-                var viewer = GetViewer(tabItem);
-                if (viewer is not null)
-                {
-                    viewer.LoadDirectory(tabState.DirectoryPath);
-                    viewer.RestoreState(tabState);
-                }
+                var tabItem = CreateDirectoryTabItem(tabState.DirectoryPath);
+                var dirView = (DirectoryTabView)tabItem.Content;
+                dirView.StartMonitoring(_settings);
+                if (tabState.ChildTabs?.Count > 0)
+                    dirView.RestoreChildTabs(tabState.ChildTabs, tabState.ActiveChildTabIndex);
             }
             else if (!string.IsNullOrEmpty(tabState.FilePath))
             {
                 if (!File.Exists(tabState.FilePath))
                 {
-                    var tabItem = CreateMissingFileTab(tabState.FilePath);
-                    TabControl.Items.Add(tabItem);
+                    TabControl.Items.Add(CreateMissingFileTab(tabState.FilePath));
                     continue;
                 }
-                var tab = CreateTabItem(tabState.FilePath, isDirectory: false);
-                var viewer = GetViewer(tab);
+                var tab = CreateFileTabItem(tabState.FilePath);
+                var viewer = GetDirectViewer(tab);
                 if (viewer is not null)
                 {
                     viewer.LoadFile(tabState.FilePath);
@@ -103,6 +107,16 @@ public partial class MainWindow : Window
             TabControl.SelectedIndex = activeIdx;
         else if (TabControl.Items.Count > 0)
             TabControl.SelectedIndex = 0;
+
+        // Restore global filter
+        if (!string.IsNullOrEmpty(_settings.GlobalFilterPatterns))
+        {
+            GlobalFilterBox.Text = _settings.GlobalFilterPatterns;
+            // Panel stays hidden; filter is applied silently
+            var patterns = ParseFilterPatterns(_settings.GlobalFilterPatterns);
+            if (patterns.Length > 0)
+                ApplyFilterToAllViewers(patterns);
+        }
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -118,121 +132,109 @@ public partial class MainWindow : Window
 
         foreach (TabItem tab in TabControl.Items)
         {
-            var viewer = GetViewer(tab);
-            if (viewer is not null)
+            if (tab.Content is DirectoryTabView dirView)
             {
-                var tabState = viewer.SaveState();
-                _settings.LastOpenTabs.Add(tabState);
+                _settings.LastOpenTabs.Add(new TabState
+                {
+                    DirectoryPath = dirView.DirectoryPath,
+                    WatchNewFiles = true,
+                    ChildTabs = dirView.SaveChildStates().ToList(),
+                    ActiveChildTabIndex = dirView.ActiveChildTabIndex
+                });
+            }
+            else if (tab.Content is LogViewerControl viewer)
+            {
+                _settings.LastOpenTabs.Add(viewer.SaveState());
             }
         }
     }
 
     public void OpenFile(string path)
     {
-        var tabItem = CreateTabItem(path, isDirectory: false);
-        var viewer = GetViewer(tabItem);
+        var tabItem = CreateFileTabItem(path);
+        var viewer = GetDirectViewer(tabItem);
         viewer?.LoadFile(path);
+        var patterns = ParseFilterPatterns(_settings.GlobalFilterPatterns);
+        if (patterns.Length > 0)
+            viewer?.ApplyGlobalFilter(patterns);
         TabControl.SelectedItem = tabItem;
         UpdateStatusForCurrentTab();
     }
 
     public void OpenDirectory(string path)
     {
-        var tabItem = CreateTabItem(path, isDirectory: true);
-        var viewer = GetViewer(tabItem);
-        viewer?.LoadDirectory(path);
-
-        // Wire up directory monitor for new files
-        if (viewer is not null && _settings.WatchDirectoryEnabled)
-        {
-            var monitor = viewer.State.Monitor;
-            if (monitor is not null)
-            {
-                monitor.NewFileDetected += (s, newFilePath) =>
-                {
-                    Dispatcher.InvokeAsync(() =>
-                    {
-                        OpenFileInBackground(newFilePath);
-                    });
-                };
-            }
-        }
-
+        var tabItem = CreateDirectoryTabItem(path);
+        var dirView = (DirectoryTabView)tabItem.Content;
+        dirView.StartMonitoring(_settings);
+        var patterns = ParseFilterPatterns(_settings.GlobalFilterPatterns);
+        if (patterns.Length > 0)
+            dirView.SetGlobalFilter(patterns);
         TabControl.SelectedItem = tabItem;
         UpdateStatusForCurrentTab();
     }
 
-    private void OpenFileInBackground(string path)
+    // Creates a top-level tab for a directly opened file
+    private TabItem CreateFileTabItem(string path)
     {
-        var tabItem = CreateTabItem(path, isDirectory: false);
-        var viewer = GetViewer(tabItem);
-        viewer?.LoadFile(path);
+        var viewer = new LogViewerControl { Settings = _settings };
 
-        // Don't switch to the new tab — blink it
-        BlinkTabHeader(tabItem);
-    }
-
-    private void BlinkTabHeader(TabItem tabItem)
-    {
-        if (tabItem.Header is DockPanel headerPanel)
+        viewer.StatusChanged += (_, status) =>
         {
-            var accentColor = WpfColor.FromRgb(0x3A, 0x5A, 0x8A);
-            var transparentColor = WpfColors.Transparent;
-
-            var anim = new ColorAnimation
-            {
-                From = accentColor,
-                To = transparentColor,
-                Duration = new Duration(TimeSpan.FromSeconds(1.2)),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
-                RepeatBehavior = new RepeatBehavior(3),
-                AutoReverse = false
-            };
-
-            var brush = new WpfSolidColorBrush(accentColor);
-            headerPanel.Background = brush;
-            brush.BeginAnimation(WpfSolidColorBrush.ColorProperty, anim);
-        }
-    }
-
-    private TabItem CreateTabItem(string path, bool isDirectory)
-    {
-        var viewer = new LogViewerControl
-        {
-            Settings = _settings
-        };
-
-        viewer.StatusChanged += (s, status) =>
-        {
-            if (TabControl.SelectedItem is TabItem selectedTab &&
-                GetViewer(selectedTab) == viewer)
-            {
+            if (TabControl.SelectedItem is TabItem sel && sel.Content == viewer)
                 StatusLineInfo.Text = status;
-            }
         };
-
-        viewer.FilePathChanged += (s, filePath) =>
+        viewer.FilePathChanged += (_, filePath) =>
         {
-            if (TabControl.SelectedItem is TabItem selectedTab &&
-                GetViewer(selectedTab) == viewer)
+            if (TabControl.SelectedItem is TabItem sel && sel.Content == viewer)
             {
                 StatusFilePath.Text = filePath;
                 StatusTail.Text = "Tailing...";
             }
         };
 
+        var tabItem = new TabItem { Content = viewer };
+        tabItem.Header = BuildTabHeader(Path.GetFileName(path), path, () => CloseTab(tabItem));
+        TabControl.Items.Add(tabItem);
+        return tabItem;
+    }
+
+    // Creates a top-level tab for a monitored directory (contains inner DirectoryTabView)
+    private TabItem CreateDirectoryTabItem(string path)
+    {
+        var dirView = new DirectoryTabView(path);
+
+        dirView.StatusChanged += (_, status) =>
+        {
+            if (TabControl.SelectedItem is TabItem sel && sel.Content == dirView)
+                StatusLineInfo.Text = status;
+        };
+        dirView.FilePathChanged += (_, filePath) =>
+        {
+            if (TabControl.SelectedItem is TabItem sel && sel.Content == dirView)
+            {
+                StatusFilePath.Text = filePath;
+                StatusTail.Text = "Tailing...";
+            }
+        };
+
+        var dirName = Path.GetFileName(path.TrimEnd('/', '\\'));
+        var tabItem = new TabItem { Content = dirView };
+        tabItem.Header = BuildTabHeader($"[{dirName}]", path, () => CloseTab(tabItem));
+        TabControl.Items.Add(tabItem);
+        return tabItem;
+    }
+
+    private DockPanel BuildTabHeader(string labelText, string toolTip, Action onClose)
+    {
         var label = new TextBlock
         {
-            Text = isDirectory
-                ? $"[Dir] {Path.GetFileName(path.TrimEnd('/', '\\'))}"
-                : Path.GetFileName(path),
+            Text = labelText,
             Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
             VerticalAlignment = VerticalAlignment.Center,
             MaxWidth = 160,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            ToolTip = path
+            ToolTip = toolTip
         };
-
         var closeBtn = new WpfButton
         {
             Content = "×",
@@ -244,35 +246,14 @@ public partial class MainWindow : Window
             Cursor = WpfCursors.Hand,
             VerticalAlignment = VerticalAlignment.Center
         };
+        closeBtn.Click += (_, e) => { e.Handled = true; onClose(); };
 
-        var headerPanel = new DockPanel
-        {
-            LastChildFill = false,
-            Background = WpfBrushes.Transparent
-        };
-
+        var panel = new DockPanel { LastChildFill = false, Background = WpfBrushes.Transparent };
         DockPanel.SetDock(label, Dock.Left);
         DockPanel.SetDock(closeBtn, Dock.Right);
-        headerPanel.Children.Add(label);
-        headerPanel.Children.Add(closeBtn);
-
-        var tabItem = new TabItem
-        {
-            Header = headerPanel,
-            Content = viewer,
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xAA, 0xAA, 0xAA)),
-            BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x3F, 0x3F, 0x3F))
-        };
-
-        closeBtn.Click += (s, e) =>
-        {
-            e.Handled = true;
-            CloseTab(tabItem);
-        };
-
-        TabControl.Items.Add(tabItem);
-        return tabItem;
+        panel.Children.Add(label);
+        panel.Children.Add(closeBtn);
+        return panel;
     }
 
     private TabItem CreateMissingFileTab(string path)
@@ -364,8 +345,11 @@ public partial class MainWindow : Window
 
     private void CloseTab(TabItem tabItem)
     {
-        var viewer = GetViewer(tabItem);
-        viewer?.State.Dispose();
+        if (tabItem.Content is DirectoryTabView dirView)
+            dirView.Dispose();
+        else if (tabItem.Content is LogViewerControl viewer)
+            viewer.State.Dispose();
+
         TabControl.Items.Remove(tabItem);
         SaveSession();
         SettingsStore.Save(_settings);
@@ -373,18 +357,25 @@ public partial class MainWindow : Window
 
     private void CloseCurrentTab()
     {
-        if (TabControl.SelectedItem is TabItem tabItem)
+        if (TabControl.SelectedItem is not TabItem tabItem) return;
+
+        // Inside a directory tab: Ctrl+W closes the active file sub-tab
+        if (tabItem.Content is DirectoryTabView dirView)
+            dirView.CloseCurrentFileTab();
+        else
             CloseTab(tabItem);
     }
 
-    private static LogViewerControl? GetViewer(TabItem tabItem) =>
+    // Returns the LogViewerControl directly hosted in a top-level file tab
+    private static LogViewerControl? GetDirectViewer(TabItem tabItem) =>
         tabItem.Content as LogViewerControl;
 
+    // Returns the currently visible LogViewerControl regardless of nesting level
     private LogViewerControl? GetCurrentViewer()
     {
-        if (TabControl.SelectedItem is TabItem tabItem)
-            return GetViewer(tabItem);
-        return null;
+        if (TabControl.SelectedItem is not TabItem tabItem) return null;
+        if (tabItem.Content is DirectoryTabView dirView) return dirView.GetCurrentViewer();
+        return tabItem.Content as LogViewerControl;
     }
 
     private void UpdateStatusForCurrentTab()
@@ -397,10 +388,8 @@ public partial class MainWindow : Window
             StatusTail.Text = "Idle";
             return;
         }
-
-        var state = viewer.State;
-        StatusFilePath.Text = state.FilePath ?? state.DirectoryPath ?? "No file";
-        StatusTail.Text = state.Tailer is not null ? "Tailing..." : "Idle";
+        StatusFilePath.Text = viewer.State.FilePath ?? "No file";
+        StatusTail.Text = viewer.State.Tailer is not null ? "Tailing..." : "Idle";
     }
 
     // ---- Event Handlers ----
@@ -445,7 +434,7 @@ public partial class MainWindow : Window
         else if (e.Key == Key.F && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
         {
             e.Handled = true;
-            GetCurrentViewer()?.ToggleFilter();
+            ToggleGlobalFilter();
         }
         else if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
         {
@@ -485,6 +474,22 @@ public partial class MainWindow : Window
     private void ExitMenu_Click(object sender, RoutedEventArgs e) => Close();
     private void GoToLineMenu_Click(object sender, RoutedEventArgs e) =>
         GetCurrentViewer()?.ShowGoToLineDialog();
+    private void ReloadFileMenu_Click(object sender, RoutedEventArgs e) =>
+        GetCurrentViewer()?.ReloadFile();
+    private void FindMenu_Click(object sender, RoutedEventArgs e) =>
+        GetCurrentViewer()?.ToggleSearch();
+    private void FilterMenu_Click(object sender, RoutedEventArgs e) =>
+        ToggleGlobalFilter();
+    private void NextMatchMenu_Click(object sender, RoutedEventArgs e) =>
+        GetCurrentViewer()?.NavigateNext();
+    private void PrevMatchMenu_Click(object sender, RoutedEventArgs e) =>
+        GetCurrentViewer()?.NavigatePrev();
+    private void ToggleDirWatchMenu_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.WatchDirectoryEnabled = ToggleDirWatchMenuItem.IsChecked;
+        WatchDirToggle.IsChecked = ToggleDirWatchMenuItem.IsChecked;
+        WatchDirToggle.Content = ToggleDirWatchMenuItem.IsChecked ? "Watch Dir: ON" : "Watch Dir: OFF";
+    }
 
     private void OpenFileDialog()
     {
@@ -514,7 +519,10 @@ public partial class MainWindow : Window
         _settings.HighlightingEnabled = ToggleHighlightingMenuItem.IsChecked;
         foreach (TabItem tab in TabControl.Items)
         {
-            GetViewer(tab)?.RefreshColorizer();
+            if (tab.Content is DirectoryTabView dirView)
+                dirView.RefreshAllColorizers();
+            else
+                GetDirectViewer(tab)?.RefreshColorizer();
         }
     }
 
@@ -543,12 +551,14 @@ public partial class MainWindow : Window
     {
         WatchDirToggle.Content = "Watch Dir: ON";
         _settings.WatchDirectoryEnabled = true;
+        ToggleDirWatchMenuItem.IsChecked = true;
     }
 
     private void WatchDirToggle_Unchecked(object sender, RoutedEventArgs e)
     {
         WatchDirToggle.Content = "Watch Dir: OFF";
         _settings.WatchDirectoryEnabled = false;
+        ToggleDirWatchMenuItem.IsChecked = false;
     }
 
     private void PollIntervalCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -574,6 +584,112 @@ public partial class MainWindow : Window
     private void ToggleDirWatch()
     {
         WatchDirToggle.IsChecked = !(WatchDirToggle.IsChecked ?? false);
+    }
+
+    // ---- Global Filter ----
+
+    private static string[] ParseFilterPatterns(string text) =>
+        text.Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0 && !l.StartsWith('#'))
+            .ToArray();
+
+    private void ToggleGlobalFilter()
+    {
+        if (GlobalFilterPanel.Visibility == Visibility.Visible)
+            HideGlobalFilterPanel();
+        else
+            ShowGlobalFilterPanel();
+    }
+
+    private void ShowGlobalFilterPanel()
+    {
+        GlobalFilterSplitterRow.Height = new GridLength(5);
+        GlobalFilterPanelRow.Height = new GridLength(_filterPanelHeight);
+        GlobalFilterSplitter.Visibility = Visibility.Visible;
+        GlobalFilterPanel.Visibility = Visibility.Visible;
+        GlobalFilterBox.Focus();
+    }
+
+    private void HideGlobalFilterPanel()
+    {
+        if (GlobalFilterPanelRow.ActualHeight > 10)
+            _filterPanelHeight = GlobalFilterPanelRow.ActualHeight;
+        GlobalFilterSplitterRow.Height = new GridLength(0);
+        GlobalFilterPanelRow.Height = new GridLength(0);
+        GlobalFilterSplitter.Visibility = Visibility.Collapsed;
+        GlobalFilterPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnFilterChanged()
+    {
+        var text = GlobalFilterBox.Text;
+        _settings.GlobalFilterPatterns = text;
+        SettingsStore.Save(_settings);
+
+        var patterns = ParseFilterPatterns(text);
+        ApplyFilterToAllViewers(patterns);
+
+        string info = patterns.Length == 0
+            ? ""
+            : $"{patterns.Length} pattern{(patterns.Length == 1 ? "" : "s")} active";
+        GlobalFilterStatusLabel.Content = info;
+    }
+
+    private void ApplyFilterToAllViewers(string[] patterns)
+    {
+        foreach (TabItem tab in TabControl.Items)
+        {
+            if (tab.Content is DirectoryTabView dirView)
+                dirView.SetGlobalFilter(patterns);
+            else if (tab.Content is LogViewerControl viewer)
+                viewer.ApplyGlobalFilter(patterns);
+        }
+    }
+
+    private void GlobalFilterBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        _filterDebounce.Stop();
+        _filterDebounce.Start();
+    }
+
+    private void GlobalFilterBox_KeyDown(object sender, WpfKeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            HideGlobalFilterPanel();
+            e.Handled = true;
+        }
+    }
+
+    private void GlobalFilterCloseBtn_Click(object sender, RoutedEventArgs e) =>
+        HideGlobalFilterPanel();
+
+    private void GlobalFilterClearBtn_Click(object sender, RoutedEventArgs e)
+    {
+        GlobalFilterBox.Text = "";
+    }
+
+    private void Window_DragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)
+            ? System.Windows.DragDropEffects.Copy
+            : System.Windows.DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Window_Drop(object sender, System.Windows.DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)) return;
+
+        var paths = (string[])e.Data.GetData(System.Windows.DataFormats.FileDrop);
+        foreach (var path in paths)
+        {
+            if (Directory.Exists(path))
+                OpenDirectory(path);
+            else if (File.Exists(path))
+                OpenFile(path);
+        }
     }
 }
 

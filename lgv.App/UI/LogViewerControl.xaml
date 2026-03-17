@@ -44,8 +44,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="50"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -73,62 +72,8 @@
                     Background="Transparent"/>
         </Grid>
 
-        <!-- Row 1: Filter bar (collapsed by default) -->
+        <!-- Row 1: Search bar (collapsed by default) -->
         <Border Grid.Row="1"
-                x:Name="FilterBar"
-                Background="#FF2D2D2D"
-                BorderBrush="#FF3F3F3F"
-                BorderThickness="0,1,0,0"
-                Padding="4,3"
-                Visibility="Collapsed">
-            <DockPanel LastChildFill="True">
-                <Button x:Name="FilterCloseBtn"
-                        DockPanel.Dock="Left"
-                        Style="{StaticResource DarkButton}"
-                        Content="✕"
-                        Width="24"
-                        Margin="0,0,4,0"
-                        Click="FilterCloseBtn_Click"
-                        ToolTip="Close filter (Escape)"/>
-                <Label DockPanel.Dock="Left"
-                       Style="{StaticResource DarkLabel}"
-                       Content="Filter:"/>
-                <Button x:Name="FilterClearBtn"
-                        DockPanel.Dock="Right"
-                        Style="{StaticResource DarkButton}"
-                        Content="Clear"
-                        Margin="4,0,0,0"
-                        Click="FilterClearBtn_Click"/>
-                <Label x:Name="FilterStatusLabel"
-                       DockPanel.Dock="Right"
-                       Style="{StaticResource DarkLabel}"
-                       Content=""
-                       MinWidth="80"
-                       HorizontalContentAlignment="Right"/>
-                <CheckBox x:Name="FilterRegexChk"
-                          DockPanel.Dock="Right"
-                          Style="{StaticResource DarkCheckBox}"
-                          Content="Regex"
-                          Margin="4,0"
-                          Checked="FilterRegexChk_Changed"
-                          Unchecked="FilterRegexChk_Changed"/>
-                <ToggleButton x:Name="FilterModeBtn"
-                              DockPanel.Dock="Right"
-                              Style="{StaticResource DarkToggle}"
-                              Content="Include"
-                              Margin="4,0"
-                              Checked="FilterModeBtn_Checked"
-                              Unchecked="FilterModeBtn_Unchecked"
-                              ToolTip="Toggle Include/Exclude"/>
-                <TextBox x:Name="FilterBox"
-                         Style="{StaticResource DarkTextBox}"
-                         TextChanged="FilterBox_TextChanged"
-                         KeyDown="FilterBox_KeyDown"/>
-            </DockPanel>
-        </Border>
-
-        <!-- Row 2: Search bar (collapsed by default) -->
-        <Border Grid.Row="2"
                 x:Name="SearchBar"
                 Background="#FF2D2D2D"
                 BorderBrush="#FF3F3F3F"
