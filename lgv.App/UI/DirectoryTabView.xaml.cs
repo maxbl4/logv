@@ -160,6 +160,19 @@ public partial class DirectoryTabView : System.Windows.Controls.UserControl, IDi
             CloseTab(tab);
     }
 
+    public void CloseAllFileTabs()
+    {
+        foreach (var tab in FileTabControl.Items.Cast<TabItem>().ToList())
+            CloseTab(tab);
+    }
+
+    public void CloseAllButNewest()
+    {
+        var tabs = FileTabControl.Items.Cast<TabItem>().ToList();
+        foreach (var tab in tabs.SkipLast(1))
+            CloseTab(tab);
+    }
+
     public LogViewerControl? GetCurrentViewer()
     {
         if (FileTabControl.SelectedItem is TabItem tab)

@@ -59,68 +59,21 @@ public class LogColorizer : DocumentColorizingTransformer
 
         foreach (var (rule, regex) in _rules)
         {
-            var lineBg = ParseColor(rule.LineBackground);
             var matchFg = ParseColor(rule.MatchForeground);
-            var matchBg = ParseColor(rule.MatchBackground);
+            if (!matchFg.HasValue) continue;
 
-            if (rule.ApplyToFullLine)
+            if (rule.ApplyToFullLine && !regex.IsMatch(lineText)) continue;
+
+            var fgBrush = new SolidColorBrush(matchFg.Value);
+            fgBrush.Freeze();
+
+            foreach (Match m in regex.Matches(lineText))
             {
-                // Check if the line matches at all
-                if (!regex.IsMatch(lineText)) continue;
-
-                // Apply line background to the whole line
-                if (lineBg.HasValue)
-                {
-                    var bgBrush = new SolidColorBrush(lineBg.Value);
-                    bgBrush.Freeze();
-                    ChangeLinePart(line.Offset, line.EndOffset, el =>
-                    {
-                        el.TextRunProperties.SetBackgroundBrush(bgBrush);
-                    });
-                }
-
-                // Apply match foreground to each match within the line
-                if (matchFg.HasValue)
-                {
-                    var fgBrush = new SolidColorBrush(matchFg.Value);
-                    fgBrush.Freeze();
-                    foreach (Match m in regex.Matches(lineText))
-                    {
-                        int start = line.Offset + m.Index;
-                        int end = start + m.Length;
-                        ChangeLinePart(start, end, el =>
-                        {
-                            el.TextRunProperties.SetForegroundBrush(fgBrush);
-                        });
-                    }
-                }
-            }
-            else
-            {
-                // Match-only highlighting
-                foreach (Match m in regex.Matches(lineText))
-                {
-                    int start = line.Offset + m.Index;
-                    int end = start + m.Length;
-
-                    SolidColorBrush? fg = matchFg.HasValue
-                        ? FreezeBrush(new SolidColorBrush(matchFg.Value))
-                        : null;
-                    SolidColorBrush? bg = matchBg.HasValue
-                        ? FreezeBrush(new SolidColorBrush(matchBg.Value))
-                        : null;
-
-                    ChangeLinePart(start, end, el =>
-                    {
-                        if (fg is not null)
-                            el.TextRunProperties.SetForegroundBrush(fg);
-                        if (bg is not null)
-                            el.TextRunProperties.SetBackgroundBrush(bg);
-                    });
-                }
+                int start = line.Offset + m.Index;
+                int end   = start + m.Length;
+                ChangeLinePart(start, end, el =>
+                    el.TextRunProperties.SetForegroundBrush(fgBrush));
             }
         }
     }
-
-    private static SolidColorBrush FreezeBrush(SolidColorBrush b) { b.Freeze(); return b; }
 }

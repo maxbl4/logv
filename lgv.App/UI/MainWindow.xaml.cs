@@ -16,6 +16,8 @@ using WpfCursors = System.Windows.Input.Cursors;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
+using WpfContextMenu = System.Windows.Controls.ContextMenu;
+using WpfMenuItem = System.Windows.Controls.MenuItem;
 
 namespace lgv.UI;
 
@@ -219,9 +221,40 @@ public partial class MainWindow : Window
 
         var dirName = Path.GetFileName(path.TrimEnd('/', '\\'));
         var tabItem = new TabItem { Content = dirView };
-        tabItem.Header = BuildTabHeader($"[{dirName}]", path, () => CloseTab(tabItem));
+        var header = BuildTabHeader($"[{dirName}]", path, () => CloseTab(tabItem));
+        header.ContextMenu = BuildDirTabContextMenu(dirView, tabItem);
+        tabItem.Header = header;
         TabControl.Items.Add(tabItem);
         return tabItem;
+    }
+
+    private WpfContextMenu BuildDirTabContextMenu(DirectoryTabView dirView, TabItem tabItem)
+    {
+        var cm = new WpfContextMenu
+        {
+            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
+            Foreground  = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
+            BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x3F, 0x3F, 0x3F))
+        };
+
+        cm.Items.Add(MakeDarkMenuItem("Close All Files",       () => dirView.CloseAllFileTabs()));
+        cm.Items.Add(MakeDarkMenuItem("Close All But Newest",  () => dirView.CloseAllButNewest()));
+        cm.Items.Add(new Separator { Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x3F, 0x3F, 0x3F)) });
+        cm.Items.Add(MakeDarkMenuItem("Close Directory Tab",   () => CloseTab(tabItem)));
+
+        return cm;
+    }
+
+    private static WpfMenuItem MakeDarkMenuItem(string header, Action onClick)
+    {
+        var item = new WpfMenuItem
+        {
+            Header     = header,
+            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
+            Foreground  = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC))
+        };
+        item.Click += (_, _) => onClick();
+        return item;
     }
 
     private DockPanel BuildTabHeader(string labelText, string toolTip, Action onClose)
@@ -476,6 +509,18 @@ public partial class MainWindow : Window
         GetCurrentViewer()?.ShowGoToLineDialog();
     private void ReloadFileMenu_Click(object sender, RoutedEventArgs e) =>
         GetCurrentViewer()?.ReloadFile();
+    private void CloseAllFilesGlobal_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (TabItem tab in TabControl.Items)
+            if (tab.Content is DirectoryTabView dirView)
+                dirView.CloseAllFileTabs();
+    }
+    private void CloseAllButNewestGlobal_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (TabItem tab in TabControl.Items)
+            if (tab.Content is DirectoryTabView dirView)
+                dirView.CloseAllButNewest();
+    }
     private void FindMenu_Click(object sender, RoutedEventArgs e) =>
         GetCurrentViewer()?.ToggleSearch();
     private void FilterMenu_Click(object sender, RoutedEventArgs e) =>

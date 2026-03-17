@@ -10,6 +10,7 @@ using lgv.Core;
 using lgv.Filter;
 using lgv.Highlighting;
 using lgv.Search;
+using LogBgRenderer = lgv.Highlighting.LogBackgroundRenderer;
 
 // Avoid ambiguity between WPF and WinForms
 using WpfUserControl = System.Windows.Controls.UserControl;
@@ -29,6 +30,7 @@ public partial class LogViewerControl : WpfUserControl
     private readonly DispatcherTimer _searchDebounce;
     private string[] _activeFilterPatterns = [];
     private LogColorizer? _colorizer;
+    private LogBgRenderer? _bgRenderer;
 
     // Events for MainWindow status bar
     public event EventHandler<string>? StatusChanged;
@@ -69,15 +71,26 @@ public partial class LogViewerControl : WpfUserControl
 
     private void SetupColorizer()
     {
+        // Remove old foreground colorizer
         var toRemove = Editor.TextArea.TextView.LineTransformers
             .OfType<LogColorizer>().ToList();
         foreach (var c in toRemove)
             Editor.TextArea.TextView.LineTransformers.Remove(c);
 
+        // Remove old background renderer
+        var bgToRemove = Editor.TextArea.TextView.BackgroundRenderers
+            .OfType<LogBgRenderer>().ToList();
+        foreach (var r in bgToRemove)
+            Editor.TextArea.TextView.BackgroundRenderers.Remove(r);
+
         if (Settings.HighlightingEnabled && Settings.Patterns.Count > 0)
         {
-            _colorizer = new LogColorizer(Settings.Patterns);
+            _colorizer  = new LogColorizer(Settings.Patterns);
+            _bgRenderer = new LogBgRenderer(Settings.Patterns);
+
             Editor.TextArea.TextView.LineTransformers.Add(_colorizer);
+            // Insert before search renderer so line backgrounds sit underneath search ticks
+            Editor.TextArea.TextView.BackgroundRenderers.Insert(0, _bgRenderer);
         }
 
         Editor.FontFamily = new System.Windows.Media.FontFamily(Settings.FontFamily);

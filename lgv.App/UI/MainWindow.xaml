@@ -85,6 +85,11 @@
                 <MenuItem Header="_Reload File" InputGestureText="F5"
                           Click="ReloadFileMenu_Click"/>
                 <Separator Background="#FF3F3F3F"/>
+                <MenuItem Header="Close _All Files in All Directories"
+                          Click="CloseAllFilesGlobal_Click"/>
+                <MenuItem Header="Close All _But Newest in All Directories"
+                          Click="CloseAllButNewestGlobal_Click"/>
+                <Separator Background="#FF3F3F3F"/>
                 <MenuItem Header="Close Tab" InputGestureText="Ctrl+W"
                           Click="CloseTabMenu_Click"/>
                 <Separator Background="#FF3F3F3F"/>
