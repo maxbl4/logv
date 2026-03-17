@@ -1,0 +1,52 @@
+<Window x:Class="lgv.UI.GoToLineDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Go To Line"
+        Width="280" Height="120"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#FF2D2D2D"
+        Foreground="#FFDCDCDC">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Label Grid.Row="0"
+               Content="Line number:"
+               Foreground="#FFDCDCDC"
+               Padding="0,0,0,4"/>
+
+        <TextBox x:Name="LineNumberBox"
+                 Grid.Row="1"
+                 Background="#FF3C3C3C"
+                 Foreground="#FFDCDCDC"
+                 BorderBrush="#FF555555"
+                 CaretBrush="#FFDCDCDC"
+                 Padding="4,2"
+                 Margin="0,0,0,8"
+                 KeyDown="LineNumberBox_KeyDown"/>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button x:Name="OkBtn"
+                    Content="Go"
+                    Width="60"
+                    Margin="0,0,8,0"
+                    Background="#FF3C3C3C"
+                    Foreground="#FFDCDCDC"
+                    BorderBrush="#FF555555"
+                    IsDefault="True"
+                    Click="OkBtn_Click"/>
+            <Button Content="Cancel"
+                    Width="60"
+                    Background="#FF3C3C3C"
+                    Foreground="#FFDCDCDC"
+                    BorderBrush="#FF555555"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

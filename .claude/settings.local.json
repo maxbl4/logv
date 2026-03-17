@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:/Users/Max/src/lgv\" && dotnet restore 2>&1 | tail -20)",
+      "Bash(cd \"C:/Users/Max/src/lgv\" && dotnet build 2>&1)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet publish:*)",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\bin\\\\Release\\\\net10.0-windows\\\\win-x64\\\\publish\\\\\")",
+      "Bash(dotnet --version && ls C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\.vscode 2>/dev/null || echo \"no .vscode dir\")",
+      "Bash(cat C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\.vscode\\\\launch.json 2>/dev/null; echo \"EXIT:$?\")"
+    ]
+  }
+}
