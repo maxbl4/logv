@@ -3,25 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="UI/MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="AppBackground" Color="#FF1E1E1E"/>
-        <SolidColorBrush x:Key="AppForeground" Color="#FFDCDCDC"/>
-        <SolidColorBrush x:Key="PanelBackground" Color="#FF2D2D2D"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#FF3A5A8A"/>
-        <SolidColorBrush x:Key="BorderBrushKey" Color="#FF3F3F3F"/>
-
-        <!-- Shared dark tab item style used by both the outer and inner tab controls -->
+        <!-- Tab item style: Padding=0 ensures log viewer fills the content area -->
         <Style x:Key="DarkTabItemStyle" TargetType="TabItem">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFAAAAAA"/>
-            <Setter Property="BorderBrush" Value="#FF3F3F3F"/>
-            <Setter Property="BorderThickness" Value="1,1,1,0"/>
             <Setter Property="Padding" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#FF1E1E1E"/>
-                    <Setter Property="Foreground" Value="#FFDCDCDC"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
     </Application.Resources>
 </Application>

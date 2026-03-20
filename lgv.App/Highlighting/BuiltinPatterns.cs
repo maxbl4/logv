@@ -9,8 +9,8 @@ public static class BuiltinPatterns
             Name = "Error",
             Pattern = @"\[(ERR|ERROR|CRIT|FATAL|CRITICAL)\]",
             ApplyToFullLine = true,
-            LineBackground = "#3D0000",
-            MatchForeground = "#FF6B6B",
+            LineBackground = "#FFEBEE",
+            MatchForeground = "#B71C1C",
             MatchBackground = null,
             Enabled = true
         },
@@ -19,8 +19,8 @@ public static class BuiltinPatterns
             Name = "Warning",
             Pattern = @"\[(WRN|WARN|WARNING)\]",
             ApplyToFullLine = true,
-            LineBackground = "#2D2000",
-            MatchForeground = "#FFD166",
+            LineBackground = "#FFF8E1",
+            MatchForeground = "#E65100",
             MatchBackground = null,
             Enabled = true
         },
@@ -30,7 +30,7 @@ public static class BuiltinPatterns
             Pattern = @"\[(INF|INFO)\]",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#6BCFFF",
+            MatchForeground = "#1565C0",
             MatchBackground = null,
             Enabled = true
         },
@@ -40,7 +40,7 @@ public static class BuiltinPatterns
             Pattern = @"\[(DBG|DEBUG|TRACE|VRB|VERBOSE)\]",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#888888",
+            MatchForeground = "#757575",
             MatchBackground = null,
             Enabled = true
         },
@@ -50,7 +50,7 @@ public static class BuiltinPatterns
             Pattern = @"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#88AACC",
+            MatchForeground = "#37474F",
             MatchBackground = null,
             Enabled = true
         },
@@ -60,7 +60,7 @@ public static class BuiltinPatterns
             Pattern = @"\b\w+Exception\b",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#FF9966",
+            MatchForeground = "#BF360C",
             MatchBackground = null,
             Enabled = true
         },
@@ -69,7 +69,7 @@ public static class BuiltinPatterns
             Name = "StackFrame",
             Pattern = @"^\s+at\s+",
             ApplyToFullLine = true,
-            LineBackground = "#1A0A00",
+            LineBackground = "#FFF3E0",
             MatchForeground = null,
             MatchBackground = null,
             Enabled = true
@@ -80,7 +80,7 @@ public static class BuiltinPatterns
             Pattern = @"\b5\d{2}\b",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#FF4444",
+            MatchForeground = "#B71C1C",
             MatchBackground = null,
             Enabled = true
         },
@@ -90,7 +90,7 @@ public static class BuiltinPatterns
             Pattern = @"\b4\d{2}\b",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#FFAA44",
+            MatchForeground = "#E65100",
             MatchBackground = null,
             Enabled = true
         },
@@ -100,7 +100,7 @@ public static class BuiltinPatterns
             Pattern = @"\b2\d{2}\b",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#66DD88",
+            MatchForeground = "#1B5E20",
             MatchBackground = null,
             Enabled = true
         },
@@ -110,7 +110,7 @@ public static class BuiltinPatterns
             Pattern = @"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
             ApplyToFullLine = false,
             LineBackground = null,
-            MatchForeground = "#AAAAFF",
+            MatchForeground = "#4527A0",
             MatchBackground = null,
             Enabled = true
         }

@@ -1,3 +1,4 @@
+using System.Text;
 using lgv.Core;
 
 namespace lgv.UI;
@@ -19,8 +20,14 @@ public class LogTabState : IDisposable
     public int SearchCurrentIndex { get; set; }
     public bool AutoScroll { get; set; }
 
-    // Document state
-    public string OriginalText { get; set; } = "";
+    // Document state — StringBuilder avoids repeated LOH allocations on every append
+    private StringBuilder _originalText = new();
+    public string OriginalText
+    {
+        get => _originalText.ToString();
+        set { _originalText.Clear(); _originalText.Append(value); }
+    }
+    public void AppendOriginalText(string text) => _originalText.Append(text);
 
     private bool _disposed;
 

@@ -73,7 +73,6 @@ public partial class DirectoryTabView : System.Windows.Controls.UserControl, IDi
         var label = new TextBlock
         {
             Text = Path.GetFileName(filePath),
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
             VerticalAlignment = VerticalAlignment.Center,
             MaxWidth = 140,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -84,7 +83,6 @@ public partial class DirectoryTabView : System.Windows.Controls.UserControl, IDi
         {
             Content = "×",
             Background = WpfBrushes.Transparent,
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xAA, 0xAA, 0xAA)),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(3),
             FontSize = 14,
@@ -203,7 +201,7 @@ public partial class DirectoryTabView : System.Windows.Controls.UserControl, IDi
     {
         if (tab.Header is not DockPanel headerPanel) return;
 
-        var accentColor = WpfColor.FromRgb(0x3A, 0x5A, 0x8A);
+        var accentColor = WpfColor.FromRgb(0x00, 0x78, 0xD7); // Windows blue
         var anim = new ColorAnimation
         {
             From = accentColor,

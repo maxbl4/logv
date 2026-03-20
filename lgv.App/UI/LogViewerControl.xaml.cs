@@ -16,6 +16,7 @@ using LogBgRenderer = lgv.Highlighting.LogBackgroundRenderer;
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
+using WpfSystemColors = System.Windows.SystemColors;
 
 namespace lgv.UI;
 
@@ -25,6 +26,7 @@ public partial class LogViewerControl : WpfUserControl
 
     private LogTabState _state = new();
     private readonly SearchMarkerRenderer _searchRenderer = new();
+    private readonly MappedLineNumberMargin _lineNumberMargin = new();
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _filterCts;
     private readonly DispatcherTimer _searchDebounce;
@@ -61,12 +63,14 @@ public partial class LogViewerControl : WpfUserControl
     private void SetupEditor()
     {
         Editor.IsReadOnly = true;
-        Editor.ShowLineNumbers = true;
+        Editor.ShowLineNumbers = false;
         Editor.WordWrap = false;
-        Editor.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
-        Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDC, 0xDC, 0xDC));
-        Editor.LineNumbersForeground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x85, 0x85, 0x85));
+        Editor.Background = WpfSystemColors.WindowBrush;
+        Editor.Foreground = WpfSystemColors.WindowTextBrush;
         Editor.SyntaxHighlighting = null;
+
+        _lineNumberMargin.SetValue(System.Windows.Controls.Control.ForegroundProperty, WpfSystemColors.GrayTextBrush);
+        Editor.TextArea.LeftMargins.Add(_lineNumberMargin);
     }
 
     private void SetupColorizer()
@@ -186,7 +190,7 @@ public partial class LogViewerControl : WpfUserControl
 
     private void AppendContent(string newText)
     {
-        _state.OriginalText += newText;
+        _state.AppendOriginalText(newText);
 
         if (_activeFilterPatterns.Length > 0)
         {
@@ -239,6 +243,7 @@ public partial class LogViewerControl : WpfUserControl
     private void RunGlobalFilter(string[] patterns)
     {
         _filterCts?.Cancel();
+        _filterCts?.Dispose();
         _filterCts = new CancellationTokenSource();
         var ct = _filterCts.Token;
         var originalText = _state.OriginalText;
@@ -248,6 +253,7 @@ public partial class LogViewerControl : WpfUserControl
             var scrollViewer = FindScrollViewer(Editor);
             double savedOffset = scrollViewer?.VerticalOffset ?? 0;
             Editor.Document.Text = originalText;
+            _lineNumberMargin.SetLineMap(null);
             if (!_state.AutoScroll)
                 scrollViewer?.ScrollToVerticalOffset(savedOffset);
             UpdateStatusBar();
@@ -271,6 +277,7 @@ public partial class LogViewerControl : WpfUserControl
                 var scrollViewer = FindScrollViewer(Editor);
                 double savedOffset = scrollViewer?.VerticalOffset ?? 0;
                 Editor.Document.Text = result.FilteredText;
+                _lineNumberMargin.SetLineMap(result.LineMap);
 
                 if (_state.AutoScroll)
                     Editor.ScrollToEnd();
@@ -307,6 +314,7 @@ public partial class LogViewerControl : WpfUserControl
     private void RunSearch()
     {
         _searchCts?.Cancel();
+        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var ct = _searchCts.Token;
         var query = SearchBox.Text;

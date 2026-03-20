@@ -230,29 +230,17 @@ public partial class MainWindow : Window
 
     private WpfContextMenu BuildDirTabContextMenu(DirectoryTabView dirView, TabItem tabItem)
     {
-        var cm = new WpfContextMenu
-        {
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
-            Foreground  = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
-            BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x3F, 0x3F, 0x3F))
-        };
-
-        cm.Items.Add(MakeDarkMenuItem("Close All Files",       () => dirView.CloseAllFileTabs()));
-        cm.Items.Add(MakeDarkMenuItem("Close All But Newest",  () => dirView.CloseAllButNewest()));
-        cm.Items.Add(new Separator { Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x3F, 0x3F, 0x3F)) });
-        cm.Items.Add(MakeDarkMenuItem("Close Directory Tab",   () => CloseTab(tabItem)));
-
+        var cm = new WpfContextMenu();
+        cm.Items.Add(MakeMenuItem("Close All Files",      () => dirView.CloseAllFileTabs()));
+        cm.Items.Add(MakeMenuItem("Close All But Newest", () => dirView.CloseAllButNewest()));
+        cm.Items.Add(new Separator());
+        cm.Items.Add(MakeMenuItem("Close Directory Tab",  () => CloseTab(tabItem)));
         return cm;
     }
 
-    private static WpfMenuItem MakeDarkMenuItem(string header, Action onClick)
+    private static WpfMenuItem MakeMenuItem(string header, Action onClick)
     {
-        var item = new WpfMenuItem
-        {
-            Header     = header,
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
-            Foreground  = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC))
-        };
+        var item = new WpfMenuItem { Header = header };
         item.Click += (_, _) => onClick();
         return item;
     }
@@ -262,7 +250,6 @@ public partial class MainWindow : Window
         var label = new TextBlock
         {
             Text = labelText,
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
             VerticalAlignment = VerticalAlignment.Center,
             MaxWidth = 160,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -272,7 +259,6 @@ public partial class MainWindow : Window
         {
             Content = "×",
             Background = WpfBrushes.Transparent,
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xAA, 0xAA, 0xAA)),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(3),
             FontSize = 14,
@@ -294,13 +280,12 @@ public partial class MainWindow : Window
         var panel = new StackPanel
         {
             VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = WpfHorizontalAlignment.Center,
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E))
+            HorizontalAlignment = WpfHorizontalAlignment.Center
         };
         panel.Children.Add(new TextBlock
         {
             Text = $"File not found:\n{path}",
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xFF, 0x6B, 0x6B)),
+            Foreground = WpfBrushes.DarkRed,
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 0, 0, 12)
         });
@@ -308,9 +293,6 @@ public partial class MainWindow : Window
         var retryBtn = new WpfButton
         {
             Content = "Retry",
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x3C, 0x3C, 0x3C)),
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xDC, 0xDC, 0xDC)),
-            BorderBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x55, 0x55, 0x55)),
             Padding = new Thickness(12, 4, 12, 4)
         };
         panel.Children.Add(retryBtn);
@@ -318,7 +300,7 @@ public partial class MainWindow : Window
         var label = new TextBlock
         {
             Text = Path.GetFileName(path) + " [missing]",
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xFF, 0x6B, 0x6B)),
+            Foreground = WpfBrushes.DarkRed,
             VerticalAlignment = VerticalAlignment.Center,
             MaxWidth = 160,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -329,7 +311,6 @@ public partial class MainWindow : Window
         {
             Content = "×",
             Background = WpfBrushes.Transparent,
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xAA, 0xAA, 0xAA)),
             BorderThickness = new Thickness(0),
             Padding = new Thickness(3),
             FontSize = 14,
@@ -346,9 +327,7 @@ public partial class MainWindow : Window
         var tabItem = new TabItem
         {
             Header = headerPanel,
-            Content = panel,
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x2D, 0x2D, 0x2D)),
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xFF, 0x6B, 0x6B))
+            Content = panel
         };
 
         closeBtn.Click += (s, e) =>

@@ -15,7 +15,9 @@
       "Bash(powershell -NoProfile -Command \"\nNew-Item -ItemType Directory -Path 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App' -Force | Out-Null\n'Core','Highlighting','Search','Filter','UI' | ForEach-Object { Move-Item \\\\\"C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\$_\\\\\" 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App\\\\' -Force }\n'lgv.csproj','App.xaml','App.xaml.cs' | ForEach-Object { Move-Item \\\\\"C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\$_\\\\\" 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\lgv.App\\\\' -Force }\nWrite-Host 'Done'\n\" 2>&1)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\move.ps1' 2>&1)",
       "Bash(dotnet sln:*)",
-      "Bash(powershell -NoProfile -Command \"Remove-Item 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\move.ps1'\" 2>&1\ndotnet build lgv.sln 2>&1 | grep -E \"error|warning|succeeded|failed\")"
+      "Bash(powershell -NoProfile -Command \"Remove-Item 'C:\\\\Users\\\\Max\\\\src\\\\lgv\\\\move.ps1'\" 2>&1\ndotnet build lgv.sln 2>&1 | grep -E \"error|warning|succeeded|failed\")",
+      "Bash(dotnet --version)",
+      "Bash(dotnet test:*)"
     ]
   }
 }

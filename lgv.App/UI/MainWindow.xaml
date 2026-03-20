@@ -4,64 +4,22 @@
         Title="LGV — Log Viewer"
         Width="1200" Height="800"
         MinWidth="640" MinHeight="400"
-        Background="#FF1E1E1E"
-        Foreground="#FFDCDCDC"
         AllowDrop="True"
         Drop="Window_Drop"
         DragOver="Window_DragOver">
 
     <Window.Resources>
-        <Style TargetType="Menu">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-        </Style>
-        <Style TargetType="MenuItem">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-        </Style>
-        <Style TargetType="ToolBar">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-        </Style>
         <Style TargetType="Button" x:Key="ToolbarButton">
-            <Setter Property="Background" Value="#FF3C3C3C"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-            <Setter Property="BorderBrush" Value="#FF555555"/>
             <Setter Property="Padding" Value="8,3"/>
             <Setter Property="Margin" Value="2,0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style TargetType="ToggleButton" x:Key="ToolbarToggle">
-            <Setter Property="Background" Value="#FF3C3C3C"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-            <Setter Property="BorderBrush" Value="#FF555555"/>
             <Setter Property="Padding" Value="8,3"/>
             <Setter Property="Margin" Value="2,0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style TargetType="StatusBar">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFAAAAAA"/>
-        </Style>
-        <Style TargetType="TabControl">
-            <Setter Property="Background" Value="#FF1E1E1E"/>
-            <Setter Property="BorderBrush" Value="#FF3F3F3F"/>
-        </Style>
-        <Style TargetType="TabItem">
-            <Setter Property="Background" Value="#FF2D2D2D"/>
-            <Setter Property="Foreground" Value="#FFAAAAAA"/>
-            <Setter Property="BorderBrush" Value="#FF3F3F3F"/>
-            <Setter Property="Padding" Value="8,4"/>
-        </Style>
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="#FFAAAAAA"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style TargetType="ComboBox" x:Key="DarkCombo">
-            <Setter Property="Background" Value="#FF3C3C3C"/>
-            <Setter Property="Foreground" Value="#FFDCDCDC"/>
-            <Setter Property="BorderBrush" Value="#FF555555"/>
-        </Style>
+        <Style TargetType="ComboBox" x:Key="DarkCombo"/>
     </Window.Resources>
 
     <Window.InputBindings>
@@ -75,27 +33,27 @@
     <DockPanel LastChildFill="True">
 
         <!-- Menu bar -->
-        <Menu DockPanel.Dock="Top" Background="#FF2D2D2D">
-            <MenuItem Header="_File" Background="#FF2D2D2D" Foreground="#FFDCDCDC">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
                 <MenuItem Header="Open _File..." InputGestureText="Ctrl+O"
                           Click="OpenFileMenu_Click"/>
                 <MenuItem Header="Open _Directory..." InputGestureText="Ctrl+Shift+O"
                           Click="OpenDirectoryMenu_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="_Reload File" InputGestureText="F5"
                           Click="ReloadFileMenu_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="Close _All Files in All Directories"
                           Click="CloseAllFilesGlobal_Click"/>
                 <MenuItem Header="Close All _But Newest in All Directories"
                           Click="CloseAllButNewestGlobal_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="Close Tab" InputGestureText="Ctrl+W"
                           Click="CloseTabMenu_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="E_xit" Click="ExitMenu_Click"/>
             </MenuItem>
-            <MenuItem Header="_View" Background="#FF2D2D2D" Foreground="#FFDCDCDC">
+            <MenuItem Header="_View">
                 <MenuItem Header="Toggle _Highlighting"
                           x:Name="ToggleHighlightingMenuItem"
                           IsCheckable="True"
@@ -111,16 +69,16 @@
                           IsCheckable="True"
                           IsChecked="True"
                           Click="ToggleDirWatchMenu_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="Go To _Line..." InputGestureText="Ctrl+G"
                           Click="GoToLineMenu_Click"/>
             </MenuItem>
-            <MenuItem Header="_Search" Background="#FF2D2D2D" Foreground="#FFDCDCDC">
+            <MenuItem Header="_Search">
                 <MenuItem Header="_Find..." InputGestureText="Ctrl+F"
                           Click="FindMenu_Click"/>
                 <MenuItem Header="_Filter..." InputGestureText="Ctrl+Shift+F"
                           Click="FilterMenu_Click"/>
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
                 <MenuItem Header="_Next Match" InputGestureText="F3"
                           Click="NextMatchMenu_Click"/>
                 <MenuItem Header="_Previous Match" InputGestureText="Shift+F3"
@@ -129,9 +87,8 @@
         </Menu>
 
         <!-- Toolbar -->
-        <ToolBarTray DockPanel.Dock="Top" Background="#FF2D2D2D">
-            <ToolBar Background="#FF2D2D2D" Foreground="#FFDCDCDC"
-                     Band="0" BandIndex="0">
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar Band="0" BandIndex="0">
                 <Button Style="{StaticResource ToolbarButton}"
                         Content="📂 Open File" Click="OpenFileMenu_Click"
                         ToolTip="Open File (Ctrl+O)"/>
@@ -139,7 +96,7 @@
                         Content="📁 Open Dir" Click="OpenDirectoryMenu_Click"
                         ToolTip="Open Directory (Ctrl+Shift+O)"/>
 
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
 
                 <ToggleButton x:Name="WatchDirToggle"
                               Style="{StaticResource ToolbarToggle}"
@@ -157,9 +114,9 @@
                               Unchecked="AutoScrollToggle_Unchecked"
                               ToolTip="Toggle auto-scroll to bottom (Ctrl+T)"/>
 
-                <Separator Background="#FF3F3F3F"/>
+                <Separator/>
 
-                <Label Content="Poll:" Foreground="#FFAAAAAA"/>
+                <Label Content="Poll:"/>
                 <ComboBox x:Name="PollIntervalCombo"
                           Style="{StaticResource DarkCombo}"
                           Width="80"
@@ -173,21 +130,19 @@
         </ToolBarTray>
 
         <!-- Status bar -->
-        <StatusBar DockPanel.Dock="Bottom" Background="#FF2D2D2D">
+        <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
                 <TextBlock x:Name="StatusFilePath" Text="No file open"
-                           Foreground="#FFAAAAAA" MaxWidth="400"
+                           MaxWidth="400"
                            TextTrimming="CharacterEllipsis"/>
             </StatusBarItem>
-            <Separator Background="#FF3F3F3F"/>
+            <Separator/>
             <StatusBarItem HorizontalContentAlignment="Center">
-                <TextBlock x:Name="StatusLineInfo" Text=""
-                           Foreground="#FFAAAAAA"/>
+                <TextBlock x:Name="StatusLineInfo" Text=""/>
             </StatusBarItem>
-            <Separator Background="#FF3F3F3F"/>
+            <Separator/>
             <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="StatusTail" Text="Idle"
-                           Foreground="#FFAAAAAA"/>
+                <TextBlock x:Name="StatusTail" Text="Idle"/>
             </StatusBarItem>
         </StatusBar>
 
@@ -202,8 +157,6 @@
             <!-- Tab control (level 1: direct files and directory containers) -->
             <TabControl x:Name="TabControl"
                         Grid.Row="0"
-                        Background="#FF1E1E1E"
-                        BorderBrush="#FF3F3F3F"
                         ItemContainerStyle="{StaticResource DarkTabItemStyle}"
                         SelectionChanged="TabControl_SelectionChanged"/>
 
@@ -214,15 +167,13 @@
                           VerticalAlignment="Stretch"
                           ResizeDirection="Rows"
                           ResizeBehavior="PreviousAndNext"
-                          Background="#FF555555"
                           Cursor="SizeNS"
                           Visibility="Collapsed"/>
 
             <!-- Global filter panel -->
             <Border x:Name="GlobalFilterPanel"
                     Grid.Row="2"
-                    Background="#FF252526"
-                    BorderBrush="#FF3F3F3F"
+                    BorderBrush="{x:Static SystemColors.ControlDarkBrush}"
                     BorderThickness="0,1,0,0"
                     Visibility="Collapsed">
                 <Grid>
@@ -232,7 +183,7 @@
                     </Grid.RowDefinitions>
 
                     <DockPanel Grid.Row="0"
-                               Background="#FF2D2D2D"
+                               Background="{x:Static SystemColors.ControlBrush}"
                                LastChildFill="False"
                                Margin="0,0,0,1">
                         <Button x:Name="GlobalFilterCloseBtn"
@@ -249,7 +200,6 @@
                                Margin="4,0"/>
                         <Label DockPanel.Dock="Left"
                                Content="(one regex per line — excludes matching lines, # = comment)"
-                               Foreground="#FF777777"
                                FontSize="11"/>
                         <Button x:Name="GlobalFilterClearBtn"
                                 DockPanel.Dock="Right"
@@ -265,10 +215,6 @@
 
                     <TextBox x:Name="GlobalFilterBox"
                              Grid.Row="1"
-                             Background="#FF3C3C3C"
-                             Foreground="#FFDCDCDC"
-                             BorderBrush="#FF555555"
-                             CaretBrush="#FFDCDCDC"
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              VerticalScrollBarVisibility="Auto"

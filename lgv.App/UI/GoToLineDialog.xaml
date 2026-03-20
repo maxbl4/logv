@@ -4,9 +4,7 @@
         Title="Go To Line"
         Width="300" Height="150"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        Background="#FF2D2D2D"
-        Foreground="#FFDCDCDC">
+        ResizeMode="NoResize">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -16,15 +14,10 @@
 
         <Label Grid.Row="0"
                Content="Line number:"
-               Foreground="#FFDCDCDC"
                Padding="0,0,0,4"/>
 
         <TextBox x:Name="LineNumberBox"
                  Grid.Row="1"
-                 Background="#FF3C3C3C"
-                 Foreground="#FFDCDCDC"
-                 BorderBrush="#FF555555"
-                 CaretBrush="#FFDCDCDC"
                  Padding="4,2"
                  Margin="0,0,0,8"
                  KeyDown="LineNumberBox_KeyDown"/>
@@ -37,17 +30,11 @@
                     MinWidth="75"
                     Padding="12,4"
                     Margin="0,0,8,0"
-                    Background="#FF3C3C3C"
-                    Foreground="#FFDCDCDC"
-                    BorderBrush="#FF555555"
                     IsDefault="True"
                     Click="OkBtn_Click"/>
             <Button Content="Cancel"
                     MinWidth="75"
                     Padding="12,4"
-                    Background="#FF3C3C3C"
-                    Foreground="#FFDCDCDC"
-                    BorderBrush="#FF555555"
                     IsCancel="True"/>
         </StackPanel>
     </Grid>

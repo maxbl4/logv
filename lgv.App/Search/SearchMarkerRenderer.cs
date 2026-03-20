@@ -15,10 +15,10 @@ public class SearchMarkerRenderer : IBackgroundRenderer
     static SearchMarkerRenderer()
     {
         NormalBrush = new SolidColorBrush(
-            System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xD7, 0x00));
+            System.Windows.Media.Color.FromArgb(0x60, 0xFF, 0xD7, 0x00));
         NormalBrush.Freeze();
         CurrentBrush = new SolidColorBrush(
-            System.Windows.Media.Color.FromArgb(0x80, 0xFF, 0x8C, 0x00));
+            System.Windows.Media.Color.FromArgb(0xA0, 0xFF, 0x8C, 0x00));
         CurrentBrush.Freeze();
     }
 
