@@ -70,7 +70,16 @@ public partial class LogViewerControl : WpfUserControl
         Editor.SyntaxHighlighting = null;
 
         _lineNumberMargin.SetValue(System.Windows.Controls.Control.ForegroundProperty, WpfSystemColors.GrayTextBrush);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(_lineNumberMargin, "LineNumberMargin");
         Editor.TextArea.LeftMargins.Add(_lineNumberMargin);
+
+        // Tag the internal ScrollViewer so UI tests can scroll via ScrollPattern reliably.
+        Loaded += (_, _) =>
+        {
+            var sv = FindScrollViewer(Editor);
+            if (sv is not null)
+                System.Windows.Automation.AutomationProperties.SetAutomationId(sv, "EditorScrollViewer");
+        };
     }
 
     private void SetupColorizer()
@@ -542,6 +551,45 @@ public partial class LogViewerControl : WpfUserControl
     {
         _searchDebounce.Stop();
         _searchDebounce.Start();
+    }
+
+    private void ScrollToTopBtn_Click(object sender, RoutedEventArgs e)
+    {
+        Editor.ScrollToHome();
+        ReportVisibleLinesAfterLayout(sender as System.Windows.Controls.Button);
+    }
+
+    private void ScrollToEndBtn_Click(object sender, RoutedEventArgs e)
+    {
+        Editor.ScrollToEnd();
+        ReportVisibleLinesAfterLayout(sender as System.Windows.Controls.Button);
+    }
+
+    /// <summary>
+    /// Queues a non-blocking <see cref="DispatcherPriority.Loaded"/> callback that toggles
+    /// the button's HelpText to signal the scroll has completed.  By the time this Loaded
+    /// callback runs, the Render pass has already executed, so the
+    /// <see cref="MappedLineNumberMargin"/> has re-rendered and its own HelpText already
+    /// reflects the new visible line numbers.  Tests read the actual displayed numbers from
+    /// the margin's HelpText, not from a separate AvalonEdit API.
+    /// </summary>
+    private void ReportVisibleLinesAfterLayout(System.Windows.Controls.Button? btn)
+    {
+        if (btn is null) return;
+        Dispatcher.InvokeAsync(() =>
+        {
+            // Refresh the margin's HelpText with the correct mapped line numbers for the
+            // current scroll position.  EnsureVisualLines() is safe here (Loaded priority,
+            // outside the rendering pipeline) and returns lines at the actual scroll offset.
+            _lineNumberMargin.RefreshVisibleLinesHelpText();
+
+            // Toggle the button HelpText last so the test can use it as a "scroll done"
+            // signal: by the time the toggle is visible, the margin HelpText is already
+            // up-to-date and ready to read.
+            string cur = System.Windows.Automation.AutomationProperties.GetHelpText(btn);
+            string toggle = cur.StartsWith("done") ? "ready" : "done";
+            System.Windows.Automation.AutomationProperties.SetHelpText(btn, toggle);
+        }, DispatcherPriority.Loaded);
     }
 
     private void SearchCloseBtn_Click(object sender, RoutedEventArgs e)

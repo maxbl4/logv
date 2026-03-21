@@ -686,6 +686,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ShowFilterPanelBtn_Click(object sender, RoutedEventArgs e) =>
+        ShowGlobalFilterPanel();
+
     private void GlobalFilterCloseBtn_Click(object sender, RoutedEventArgs e) =>
         HideGlobalFilterPanel();
 

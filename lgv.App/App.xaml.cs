@@ -20,6 +20,17 @@ public partial class App : System.Windows.Application
 
         // Ensure settings are loaded and seeded
         _ = SettingsStore.Current;
+
+        // Open file passed as CLI argument (used by UI tests)
+        if (e.Args.Length > 0 && System.IO.File.Exists(e.Args[0]))
+        {
+            string filePath = e.Args[0];
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
+            {
+                if (MainWindow is lgv.UI.MainWindow mw)
+                    mw.OpenFile(filePath);
+            });
+        }
     }
 
     protected override void OnExit(System.Windows.ExitEventArgs e)

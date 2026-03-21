@@ -1,4 +1,7 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=d3d627e6_002Dd776_002D412b_002D89d4_002De1d89706e13b/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="MappedLineNumberMarginStorageTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;ProjectFile&gt;F85C1477-08CA-4B39-816C-F8BEE4E45F82/f:LineNumberMarginTests.cs&lt;/ProjectFile&gt;&#xD;
+  &lt;Or&gt;&#xD;
+    &lt;ProjectFile&gt;F85C1477-08CA-4B39-816C-F8BEE4E45F82/f:LineNumberMarginTests.cs&lt;/ProjectFile&gt;&#xD;
+    &lt;Project Location="C:\Users\Max\src\lgv\lgv.UITests" Presentation="&amp;lt;lgv.UITests&amp;gt;" /&gt;&#xD;
+  &lt;/Or&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

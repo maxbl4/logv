@@ -160,6 +160,14 @@
                         ItemContainerStyle="{StaticResource DarkTabItemStyle}"
                         SelectionChanged="TabControl_SelectionChanged"/>
 
+            <!-- 1×1 pixel button for UI-test automation: shows the global filter panel. -->
+            <Button x:Name="ShowFilterPanelBtn"
+                    Grid.Row="0"
+                    Width="1" Height="1"
+                    IsTabStop="False" Focusable="False"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Click="ShowFilterPanelBtn_Click"/>
+
             <!-- Global filter splitter -->
             <GridSplitter x:Name="GlobalFilterSplitter"
                           Grid.Row="1"

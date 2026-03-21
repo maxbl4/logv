@@ -53,6 +53,18 @@
                     VerticalAlignment="Stretch"
                     IsHitTestVisible="False"
                     Background="Transparent"/>
+
+            <!-- 1×1 pixel buttons for UI-test automation (InvokePattern). x:Name doubles as AutomationId. -->
+            <Button x:Name="ScrollToTopBtn"
+                    Width="1" Height="1"
+                    IsTabStop="False" Focusable="False"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Click="ScrollToTopBtn_Click"/>
+            <Button x:Name="ScrollToEndBtn"
+                    Width="1" Height="1"
+                    IsTabStop="False" Focusable="False"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Click="ScrollToEndBtn_Click"/>
         </Grid>
 
         <!-- Row 1: Search bar (collapsed by default) -->
