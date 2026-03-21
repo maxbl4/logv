@@ -48,6 +48,7 @@
 
             <!-- Tick canvas overlaid on right side (over scrollbar) -->
             <Canvas x:Name="TickCanvas"
+                    AutomationProperties.AutomationId="TickCanvas"
                     Width="17"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Stretch"
@@ -55,6 +56,11 @@
                     Background="Transparent"/>
 
             <!-- 1×1 pixel buttons for UI-test automation (InvokePattern). x:Name doubles as AutomationId. -->
+            <Button x:Name="ShowSearchBarBtn"
+                    Width="1" Height="1"
+                    IsTabStop="False" Focusable="False"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                    Click="ShowSearchBarBtn_Click"/>
             <Button x:Name="ScrollToTopBtn"
                     Width="1" Height="1"
                     IsTabStop="False" Focusable="False"
@@ -126,6 +132,7 @@
                           Checked="SearchOptions_Changed"
                           Unchecked="SearchOptions_Changed"/>
                 <TextBox x:Name="SearchBox"
+                         AutomationProperties.AutomationId="SearchBox"
                          Style="{StaticResource DarkTextBox}"
                          TextChanged="SearchBox_TextChanged"
                          KeyDown="SearchBox_KeyDown"/>

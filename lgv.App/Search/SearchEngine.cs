@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using ICSharpCode.AvalonEdit.Document;
 
 namespace lgv.Search;
 
@@ -9,7 +8,6 @@ public static class SearchEngine
 
     public static IReadOnlyList<SearchResult> FindAll(
         string text,
-        TextDocument document,
         string query,
         bool caseSensitive,
         bool useRegex,
@@ -33,21 +31,20 @@ public static class SearchEngine
 
         var results = new List<SearchResult>();
 
+        // Compute line numbers by scanning the text string — safe to call from any thread,
+        // unlike TextDocument.GetLineByOffset() which requires the UI thread.
+        int lineNumber = 1;
+        int prevOffset = 0;
+
         foreach (Match m in regex.Matches(text))
         {
             ct.ThrowIfCancellationRequested();
 
-            int lineNumber;
-            try
-            {
-                lineNumber = document.GetLineByOffset(m.Index).LineNumber;
-            }
-            catch
-            {
-                lineNumber = 1;
-            }
+            for (int i = prevOffset; i < m.Index; i++)
+                if (text[i] == '\n') lineNumber++;
 
             results.Add(new SearchResult(m.Index, m.Length, lineNumber));
+            prevOffset = m.Index;
         }
 
         return results;

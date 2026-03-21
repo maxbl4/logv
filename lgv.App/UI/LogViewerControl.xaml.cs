@@ -330,7 +330,6 @@ public partial class LogViewerControl : WpfUserControl
         var caseSensitive = SearchCaseChk.IsChecked == true;
         var useRegex = SearchRegexChk.IsChecked == true;
         var text = Editor.Document.Text;
-        var doc = Editor.Document;
 
         if (string.IsNullOrEmpty(query))
         {
@@ -343,7 +342,7 @@ public partial class LogViewerControl : WpfUserControl
             IReadOnlyList<SearchEngine.SearchResult> results;
             try
             {
-                results = SearchEngine.FindAll(text, doc, query, caseSensitive, useRegex, ct);
+                results = SearchEngine.FindAll(text, query, caseSensitive, useRegex, ct);
             }
             catch (OperationCanceledException)
             {
@@ -376,6 +375,7 @@ public partial class LogViewerControl : WpfUserControl
         Editor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Background);
         SearchCountLabel.Content = "0 of 0";
         TickCanvas.Children.Clear();
+        System.Windows.Automation.AutomationProperties.SetName(TickCanvas, "");
     }
 
     public void NavigateToMatch(int index)
@@ -421,21 +421,28 @@ public partial class LogViewerControl : WpfUserControl
     {
         TickCanvas.Children.Clear();
         var results = _searchRenderer.Results;
-        if (results.Count == 0) return;
+
+        if (results.Count == 0)
+        {
+            System.Windows.Automation.AutomationProperties.SetName(TickCanvas, "");
+            return;
+        }
 
         int totalLines = Editor.Document.LineCount;
         if (totalLines == 0) return;
 
         double trackHeight = TickCanvas.ActualHeight;
-        if (trackHeight <= 0) trackHeight = ActualHeight;
         if (trackHeight <= 0) return;
 
         var goldBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
         goldBrush.Freeze();
 
-        foreach (var result in results)
+        // One tick per unique line (Chrome-style: deduplicate matches on the same line).
+        var uniqueLines = results.Select(r => r.Line).Distinct().OrderBy(l => l).ToList();
+
+        foreach (int line in uniqueLines)
         {
-            double proportion = (double)(result.Line - 1) / Math.Max(1, totalLines - 1);
+            double proportion = (double)(line - 1) / Math.Max(1, totalLines - 1);
             double top = proportion * trackHeight;
 
             var rect = new WpfRectangle
@@ -449,6 +456,9 @@ public partial class LogViewerControl : WpfUserControl
             Canvas.SetLeft(rect, 0);
             TickCanvas.Children.Add(rect);
         }
+
+        System.Windows.Automation.AutomationProperties.SetName(TickCanvas,
+            string.Join(",", uniqueLines));
     }
 
     private void UpdateStatusBar()
@@ -590,6 +600,12 @@ public partial class LogViewerControl : WpfUserControl
             string toggle = cur.StartsWith("done") ? "ready" : "done";
             System.Windows.Automation.AutomationProperties.SetHelpText(btn, toggle);
         }, DispatcherPriority.Loaded);
+    }
+
+    private void ShowSearchBarBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (SearchBar.Visibility != Visibility.Visible)
+            ToggleSearch();
     }
 
     private void SearchCloseBtn_Click(object sender, RoutedEventArgs e)

@@ -304,6 +304,79 @@ internal sealed class AppDriver : IDisposable
     /// </summary>
     public void ClearGlobalFilter() => SetGlobalFilter("");
 
+    /// <summary>
+    /// Opens the in-editor search bar and types the given query into the search box.
+    /// Waits for the debounced search to complete before returning.
+    /// </summary>
+    public void SetSearch(string query)
+    {
+        var searchBoxCond = new PropertyCondition(AutomationElement.AutomationIdProperty, "SearchBox");
+
+        var el = _window.FindFirst(TreeScope.Descendants, searchBoxCond);
+        if (el is null)
+        {
+            var showBtn = _window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "ShowSearchBarBtn"))
+                ?? throw new InvalidOperationException("ShowSearchBarBtn automation element not found.");
+
+            if (showBtn.TryGetCurrentPattern(InvokePattern.Pattern, out object? btnP)
+                && btnP is InvokePattern btnIp)
+                btnIp.Invoke();
+
+            var deadline = DateTime.UtcNow.AddSeconds(2);
+            while (DateTime.UtcNow < deadline)
+            {
+                el = _window.FindFirst(TreeScope.Descendants, searchBoxCond);
+                if (el is not null) break;
+                Thread.Sleep(100);
+            }
+
+            if (el is null)
+                throw new InvalidOperationException(
+                    "SearchBox not found even after invoking ShowSearchBarBtn.");
+        }
+
+        el.SetFocus();
+        Thread.Sleep(100);
+
+        if (el.TryGetCurrentPattern(ValuePattern.Pattern, out object? patternObj)
+            && patternObj is ValuePattern vp)
+        {
+            vp.SetValue(query);
+        }
+        else
+        {
+            System.Windows.Forms.SendKeys.SendWait("^a");
+            Thread.Sleep(50);
+            System.Windows.Forms.SendKeys.SendWait(query);
+        }
+
+        // Give the debounced search time to run
+        Thread.Sleep(600);
+    }
+
+    /// <summary>
+    /// Returns the comma-separated line numbers of the tick marks currently drawn on the
+    /// scrollbar (one entry per unique matched line), as set by DrawTicks().
+    /// Polls until non-empty or the timeout expires.
+    /// </summary>
+    public string GetTickLineNumbers(TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        while (DateTime.UtcNow < deadline)
+        {
+            var el = _window.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.AutomationIdProperty, "TickCanvas"));
+            string val = el?.Current.Name ?? "";
+            if (!string.IsNullOrEmpty(val))
+                return val;
+            Thread.Sleep(200);
+        }
+        return _window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "TickCanvas"))
+            ?.Current.Name ?? "";
+    }
+
     public void Dispose()
     {
         try

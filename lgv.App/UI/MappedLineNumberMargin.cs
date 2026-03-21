@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Rendering;
@@ -39,11 +40,10 @@ public sealed class MappedLineNumberMargin : AbstractMargin
     // Last set of visible line numbers written in OnRender — always reflects what was drawn.
     private string _lastVisibleHelpText = "";
 
-    // Snapshot captured by RefreshVisibleLinesHelpText (called at Loaded priority, outside
-    // the render pipeline).  Non-null means OnRender must use this snapshot rather than
-    // calling EnsureVisualLines() directly (which yields stale results inside OnRender).
+    // Snapshot computed at Loaded priority (after layout has committed the scroll offset).
+    // OnRender uses this when non-null, then clears it.
     private record struct LineEntry(int Display, double Y);
-    private LineEntry[]? _forcedSnapshot;
+    private LineEntry[]? _snapshot;
 
     public void SetLineMap(int[]? lineMap)
     {
@@ -56,7 +56,10 @@ public sealed class MappedLineNumberMargin : AbstractMargin
     protected override void OnTextViewChanged(TextView oldTextView, TextView newTextView)
     {
         if (oldTextView is not null)
+        {
             oldTextView.DocumentChanged -= OnDocumentObjectChanged;
+            oldTextView.ScrollOffsetChanged -= OnScrollOffsetChanged;
+        }
 
         UnsubscribeDocument();
 
@@ -65,11 +68,21 @@ public sealed class MappedLineNumberMargin : AbstractMargin
         if (newTextView is not null)
         {
             newTextView.DocumentChanged += OnDocumentObjectChanged;
+            newTextView.ScrollOffsetChanged += OnScrollOffsetChanged;
             SubscribeDocument(newTextView.Document);
         }
 
         RefreshAutomationValue();
         InvalidateMeasure();
+    }
+
+    // When the scroll offset changes, queue a Loaded-priority callback to capture the
+    // correct visual lines.  EnsureVisualLines() is not safe inside OnRender (it calls
+    // UpdateLayout() which runs a nested layout at the wrong offset), but it works
+    // correctly at Loaded priority — after the Render-priority layout pass has finished.
+    private void OnScrollOffsetChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.InvokeAsync(CaptureSnapshot, DispatcherPriority.Loaded);
     }
 
     // Fires when the TextDocument *object* is replaced on the TextView.
@@ -84,9 +97,6 @@ public sealed class MappedLineNumberMargin : AbstractMargin
     }
 
     // Fires on every insert / delete inside the TextDocument.
-    // This is the fix for the width-never-updates bug: previously we only listened to
-    // DocumentChanged (document object replaced), but LogViewerControl always mutates
-    // the same TextDocument instance, so DocumentChanged never fired after startup.
     private void OnDocumentContentChanged(object? sender, DocumentChangeEventArgs e)
     {
         RefreshAutomationValue();
@@ -115,8 +125,6 @@ public sealed class MappedLineNumberMargin : AbstractMargin
             ? _lineMap[^1]
             : Math.Max(1, TextView?.Document?.LineCount ?? 1);
 
-        // Use '9' repeated — widest digit — so the margin never clips numbers.
-        // Read font from TextView so we match the editor's actual font (e.g. Consolas).
         var ft = MakeText(new string('9', maxLine.ToString().Length));
         return new WpfSize(ft.Width + 6, 0);
     }
@@ -130,21 +138,18 @@ public sealed class MappedLineNumberMargin : AbstractMargin
 
         LineEntry[] entries;
 
-        if (_forcedSnapshot is not null)
+        if (_snapshot is not null)
         {
-            // A forced snapshot was prepared by RefreshVisibleLinesHelpText (called at
-            // Loaded priority, outside the render pipeline, where EnsureVisualLines works
-            // correctly).  Use it and clear it so normal rendering takes over afterwards.
-            entries = _forcedSnapshot;
-            _forcedSnapshot = null;
+            // Use the snapshot captured at Loaded priority where EnsureVisualLines() is
+            // safe.  Clear it so subsequent normal repaints use VisualLines directly.
+            entries = _snapshot;
+            _snapshot = null;
         }
         else
         {
-            // Normal render path: VisualLines are valid here because AvalonEdit's own
-            // measure/arrange pass ran before this OnRender call.  Do NOT call
-            // EnsureVisualLines() here — it calls UpdateLayout() which triggers a nested
-            // layout at the wrong scroll offset, causing the margin to always show line
-            // 1..N regardless of scroll position.
+            // Normal repaint (e.g. document change, resize): VisualLines are valid here
+            // because AvalonEdit's own measure/arrange ran before this OnRender.
+            // Do NOT call EnsureVisualLines() — see OnScrollOffsetChanged for why.
             var vls = TextView.VisualLines;
             entries = new LineEntry[vls.Count];
             for (int i = 0; i < vls.Count; i++)
@@ -170,8 +175,7 @@ public sealed class MappedLineNumberMargin : AbstractMargin
             visibleNums.Append(display);
         }
 
-        // HelpText always mirrors what was just drawn — the test reads from here so it
-        // sees the same numbers the user sees.
+        // HelpText always mirrors what was just drawn so tests read the true display.
         string visibleStr = visibleNums.ToString();
         if (visibleStr != _lastVisibleHelpText)
         {
@@ -181,13 +185,13 @@ public sealed class MappedLineNumberMargin : AbstractMargin
     }
 
     /// <summary>
-    /// Captures the currently visible lines via <see cref="TextView.EnsureVisualLines"/>
-    /// (safe at <see cref="System.Windows.Threading.DispatcherPriority.Loaded"/>, outside
-    /// the rendering pipeline), stores them as a forced snapshot, then calls
-    /// <see cref="InvalidateVisual"/> so the next <see cref="OnRender"/> uses the snapshot
-    /// instead of the stale <see cref="TextView.VisualLines"/>.
+    /// Called at <see cref="DispatcherPriority.Loaded"/> (both automatically on every scroll
+    /// and explicitly by <see cref="RefreshVisibleLinesHelpText"/>).  Calls
+    /// <see cref="TextView.EnsureVisualLines"/> — safe here because the Render-priority
+    /// layout pass has already committed the new scroll offset — then stores a snapshot for
+    /// the next <see cref="OnRender"/> and schedules a repaint.
     /// </summary>
-    public void RefreshVisibleLinesHelpText()
+    private void CaptureSnapshot()
     {
         if (TextView is null) return;
         TextView.EnsureVisualLines();
@@ -206,11 +210,17 @@ public sealed class MappedLineNumberMargin : AbstractMargin
             snapshot[i] = new LineEntry(display, y);
         }
 
-        _forcedSnapshot = snapshot;
-        InvalidateVisual(); // triggers OnRender which draws the snapshot and updates HelpText
+        _snapshot = snapshot;
+        InvalidateVisual();
     }
 
-    // Read font from TextView so we use the editor's font, not the margin's inherited default.
+    /// <summary>
+    /// Forces an immediate snapshot refresh.  Called by the scroll-test automation buttons
+    /// at <see cref="DispatcherPriority.Loaded"/> so the margin HelpText is updated before
+    /// the button's own HelpText is toggled (giving the test a reliable read point).
+    /// </summary>
+    public void RefreshVisibleLinesHelpText() => CaptureSnapshot();
+
     private WpfFormattedText MakeText(string s, WpfBrush? foreground = null)
     {
         var source = (DependencyObject?)TextView ?? this;
@@ -231,11 +241,6 @@ public sealed class MappedLineNumberMargin : AbstractMargin
     private double GetDpi() =>
         PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
 
-    // Always called on the UI thread (from event handlers and SetLineMap).
-    // Writes to AutomationProperties.Name so tests can read it via el.Current.Name —
-    // a standard UIA property that works reliably across process boundaries without
-    // needing a custom IValueProvider pattern (which isn't reliably proxied for
-    // FrameworkElement subclasses in out-of-process UIA).
     private void RefreshAutomationValue()
     {
         if (_lineMap is { Length: > 0 })
@@ -248,8 +253,6 @@ public sealed class MappedLineNumberMargin : AbstractMargin
         AutomationProperties.SetName(this, _automationValue);
     }
 
-    // A minimal peer is required so the element appears in the UIA tree at all;
-    // the actual data is exposed via Name (all lines) and HelpText (visible lines).
     protected override AutomationPeer OnCreateAutomationPeer() =>
         new FrameworkElementAutomationPeer(this);
 }
