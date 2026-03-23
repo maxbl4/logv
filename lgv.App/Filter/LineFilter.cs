@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -19,7 +20,10 @@ public static class LineFilter
             .ToArray();
 
         if (activePatterns.Length == 0)
-            return new FilterResult(originalText, Enumerable.Range(1, originalText.Split('\n').Length).ToArray(), 0, 0);
+        {
+            int lineCount = 1 + originalText.AsSpan().Count('\n');
+            return new FilterResult(originalText, [.. Enumerable.Range(1, lineCount)], 0, 0);
+        }
 
         int invalid = 0;
         var regexes = new List<Regex>();
@@ -38,24 +42,21 @@ public static class LineFilter
         if (regexes.Count == 0)
             return new FilterResult(originalText, [], 0, invalid);
 
-        // Normalize \r\n and lone \r to \n so no \r characters end up
-        // embedded as line content in the filtered document (which would
-        // shift caret positions and break selection in AvalonEdit).
-        var normalized = originalText.Replace("\r\n", "\n").Replace('\r', '\n');
-        var lines = normalized.Split('\n');
-        var filteredLines = new List<string>(lines.Length);
-        var lineMap = new List<int>(lines.Length);
-
-        for (int i = 0; i < lines.Length; i++)
+        // Use StringReader to iterate lines without allocating a normalized copy of the
+        // entire text. StringReader.ReadLine() handles \r\n, \r, and \n transparently.
+        var filteredLines = new List<string>();
+        var lineMap = new List<int>();
+        using var reader = new StringReader(originalText);
+        int lineNumber = 0;
+        string? line;
+        while ((line = reader.ReadLine()) != null)
         {
-            var line = lines[i];
+            lineNumber++;
             bool anyMatch = regexes.Any(rx => rx.IsMatch(line));
-            bool keep = !anyMatch;
-
-            if (keep)
+            if (!anyMatch)
             {
                 filteredLines.Add(line);
-                lineMap.Add(i + 1); // 1-based original line number
+                lineMap.Add(lineNumber);
             }
         }
 

@@ -15,13 +15,21 @@ using LogBgRenderer = lgv.Highlighting.LogBackgroundRenderer;
 // Avoid ambiguity between WPF and WinForms
 using WpfUserControl = System.Windows.Controls.UserControl;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
-using WpfRectangle = System.Windows.Shapes.Rectangle;
 using WpfSystemColors = System.Windows.SystemColors;
 
 namespace lgv.UI;
 
 public partial class LogViewerControl : WpfUserControl
 {
+    // Frozen brush shared across all instances — created once, zero GC pressure per tick.
+    private static readonly SolidColorBrush s_goldBrush = MakeGoldBrush();
+    private static SolidColorBrush MakeGoldBrush()
+    {
+        var b = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
+        b.Freeze();
+        return b;
+    }
+
     public AppSettings Settings { get; set; } = new();
 
     private LogTabState _state = new();
@@ -30,9 +38,15 @@ public partial class LogViewerControl : WpfUserControl
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _filterCts;
     private readonly DispatcherTimer _searchDebounce;
+    // Coalesces filter re-runs when new content arrives — avoids re-filtering the full
+    // document on every 500 ms poll tick while a filter is active.
+    private readonly DispatcherTimer _filterAppendTimer;
+    private bool _filterPendingAppend;
     private string[] _activeFilterPatterns = [];
     private LogColorizer? _colorizer;
     private LogBgRenderer? _bgRenderer;
+    // Single Path element reused across DrawTicks calls — avoids creating N WPF elements.
+    private System.Windows.Shapes.Path? _tickPath;
 
     // Events for MainWindow status bar
     public event EventHandler<string>? StatusChanged;
@@ -46,6 +60,17 @@ public partial class LogViewerControl : WpfUserControl
 
         _searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _searchDebounce.Tick += (_, _) => { _searchDebounce.Stop(); RunSearch(); };
+
+        _filterAppendTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
+        _filterAppendTimer.Tick += (_, _) =>
+        {
+            _filterAppendTimer.Stop();
+            if (_filterPendingAppend && _activeFilterPatterns.Length > 0)
+            {
+                _filterPendingAppend = false;
+                RunGlobalFilter(_activeFilterPatterns);
+            }
+        };
 
         Editor.TextArea.TextView.BackgroundRenderers.Add(_searchRenderer);
 
@@ -68,6 +93,9 @@ public partial class LogViewerControl : WpfUserControl
         Editor.Background = WpfSystemColors.WindowBrush;
         Editor.Foreground = WpfSystemColors.WindowTextBrush;
         Editor.SyntaxHighlighting = null;
+
+        // Log files are append-only — disable undo history to avoid unbounded memory growth.
+        Editor.Document.UndoStack.SizeLimit = 0;
 
         _lineNumberMargin.SetValue(System.Windows.Controls.Control.ForegroundProperty, WpfSystemColors.GrayTextBrush);
         System.Windows.Automation.AutomationProperties.SetAutomationId(_lineNumberMargin, "LineNumberMargin");
@@ -203,8 +231,12 @@ public partial class LogViewerControl : WpfUserControl
 
         if (_activeFilterPatterns.Length > 0)
         {
-            // Re-run filter to incorporate new content
-            RunGlobalFilter(_activeFilterPatterns);
+            // Schedule a filter refresh rather than re-filtering the entire document on
+            // every poll tick. The timer fires at most once per second, coalescing rapid
+            // appends into a single filter run.
+            _filterPendingAppend = true;
+            if (!_filterAppendTimer.IsEnabled)
+                _filterAppendTimer.Start();
             return;
         }
 
@@ -245,6 +277,8 @@ public partial class LogViewerControl : WpfUserControl
     // Called by MainWindow to apply/update the global filter
     public void ApplyGlobalFilter(string[] patterns)
     {
+        _filterAppendTimer.Stop();
+        _filterPendingAppend = false;
         _activeFilterPatterns = patterns;
         RunGlobalFilter(patterns);
     }
@@ -374,7 +408,7 @@ public partial class LogViewerControl : WpfUserControl
         _searchRenderer.Update([], -1);
         Editor.TextArea.TextView.InvalidateLayer(ICSharpCode.AvalonEdit.Rendering.KnownLayer.Background);
         SearchCountLabel.Content = "0 of 0";
-        TickCanvas.Children.Clear();
+        if (_tickPath is not null) _tickPath.Data = null;
         System.Windows.Automation.AutomationProperties.SetName(TickCanvas, "");
     }
 
@@ -419,11 +453,11 @@ public partial class LogViewerControl : WpfUserControl
 
     private void DrawTicks()
     {
-        TickCanvas.Children.Clear();
         var results = _searchRenderer.Results;
 
         if (results.Count == 0)
         {
+            if (_tickPath is not null) _tickPath.Data = null;
             System.Windows.Automation.AutomationProperties.SetName(TickCanvas, "");
             return;
         }
@@ -434,28 +468,34 @@ public partial class LogViewerControl : WpfUserControl
         double trackHeight = TickCanvas.ActualHeight;
         if (trackHeight <= 0) return;
 
-        var goldBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
-        goldBrush.Freeze();
+        double width = TickCanvas.Width > 0 ? TickCanvas.Width : 17;
 
         // One tick per unique line (Chrome-style: deduplicate matches on the same line).
         var uniqueLines = results.Select(r => r.Line).Distinct().OrderBy(l => l).ToList();
 
-        foreach (int line in uniqueLines)
+        // Build a single frozen StreamGeometry for all ticks — one Path element instead of
+        // N Rectangle FrameworkElements, regardless of match count.
+        var sg = new System.Windows.Media.StreamGeometry();
+        using (var sgc = sg.Open())
         {
-            double proportion = (double)(line - 1) / Math.Max(1, totalLines - 1);
-            double top = proportion * trackHeight;
-
-            var rect = new WpfRectangle
+            foreach (int line in uniqueLines)
             {
-                Width = TickCanvas.Width > 0 ? TickCanvas.Width : 17,
-                Height = 2,
-                Fill = goldBrush
-            };
-
-            Canvas.SetTop(rect, top);
-            Canvas.SetLeft(rect, 0);
-            TickCanvas.Children.Add(rect);
+                double proportion = (double)(line - 1) / Math.Max(1, totalLines - 1);
+                double top = Math.Round(proportion * trackHeight);
+                sgc.BeginFigure(new System.Windows.Point(0, top), isFilled: true, isClosed: true);
+                sgc.LineTo(new System.Windows.Point(width, top), isStroked: false, isSmoothJoin: false);
+                sgc.LineTo(new System.Windows.Point(width, top + 2), isStroked: false, isSmoothJoin: false);
+                sgc.LineTo(new System.Windows.Point(0, top + 2), isStroked: false, isSmoothJoin: false);
+            }
         }
+        sg.Freeze();
+
+        if (_tickPath is null)
+        {
+            _tickPath = new System.Windows.Shapes.Path { Fill = s_goldBrush };
+            TickCanvas.Children.Add(_tickPath);
+        }
+        _tickPath.Data = sg;
 
         System.Windows.Automation.AutomationProperties.SetName(TickCanvas,
             string.Join(",", uniqueLines));
