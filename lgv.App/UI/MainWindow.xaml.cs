@@ -478,10 +478,28 @@ public partial class MainWindow : Window
             e.Handled = true;
             OpenDirectoryDialog();
         }
+        else if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase)
+            {
+                e.Handled = true;
+                PasteAsFile();
+            }
+        }
+    }
+
+    private void PasteAsFile()
+    {
+        if (!System.Windows.Clipboard.ContainsText()) return;
+        var text = System.Windows.Clipboard.GetText();
+        var path = Path.Combine(Path.GetTempPath(), $"lgv_paste_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+        File.WriteAllText(path, text);
+        OpenFile(path);
     }
 
     private void OpenFileMenu_Click(object sender, RoutedEventArgs e) => OpenFileDialog();
     private void OpenDirectoryMenu_Click(object sender, RoutedEventArgs e) => OpenDirectoryDialog();
+    private void PasteAsFileMenu_Click(object sender, RoutedEventArgs e) => PasteAsFile();
     private void CloseTabMenu_Click(object sender, RoutedEventArgs e) => CloseCurrentTab();
     private void ExitMenu_Click(object sender, RoutedEventArgs e) => Close();
     private void GoToLineMenu_Click(object sender, RoutedEventArgs e) =>

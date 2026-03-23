@@ -39,6 +39,8 @@
                           Click="OpenFileMenu_Click"/>
                 <MenuItem Header="Open _Directory..." InputGestureText="Ctrl+Shift+O"
                           Click="OpenDirectoryMenu_Click"/>
+                <MenuItem Header="_Paste as File" InputGestureText="Ctrl+V"
+                          Click="PasteAsFileMenu_Click"/>
                 <Separator/>
                 <MenuItem Header="_Reload File" InputGestureText="F5"
                           Click="ReloadFileMenu_Click"/>
