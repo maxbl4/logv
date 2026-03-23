@@ -17,6 +17,7 @@
                Padding="0,0,0,4"/>
 
         <TextBox x:Name="LineNumberBox"
+                 AutomationProperties.AutomationId="LineNumberBox"
                  Grid.Row="1"
                  Padding="4,2"
                  Margin="0,0,0,8"
@@ -26,6 +27,7 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button x:Name="OkBtn"
+                    AutomationProperties.AutomationId="OkBtn"
                     Content="Go"
                     MinWidth="75"
                     Padding="12,4"

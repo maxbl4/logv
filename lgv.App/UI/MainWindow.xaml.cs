@@ -707,6 +707,9 @@ public partial class MainWindow : Window
     private void ShowFilterPanelBtn_Click(object sender, RoutedEventArgs e) =>
         ShowGlobalFilterPanel();
 
+    private void GoToLineBtn_Click(object sender, RoutedEventArgs e) =>
+        Dispatcher.BeginInvoke(() => GetCurrentViewer()?.ShowGoToLineDialog());
+
     private void GlobalFilterCloseBtn_Click(object sender, RoutedEventArgs e) =>
         HideGlobalFilterPanel();
 

@@ -35,6 +35,7 @@ public partial class LogViewerControl : WpfUserControl
     private LogTabState _state = new();
     private readonly SearchMarkerRenderer _searchRenderer = new();
     private readonly MappedLineNumberMargin _lineNumberMargin = new();
+    private int[]? _activeLineMap;
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _filterCts;
     private readonly DispatcherTimer _searchDebounce;
@@ -296,6 +297,7 @@ public partial class LogViewerControl : WpfUserControl
             var scrollViewer = FindScrollViewer(Editor);
             double savedOffset = scrollViewer?.VerticalOffset ?? 0;
             Editor.Document.Text = originalText;
+            _activeLineMap = null;
             _lineNumberMargin.SetLineMap(null);
             if (!_state.AutoScroll)
                 scrollViewer?.ScrollToVerticalOffset(savedOffset);
@@ -320,6 +322,7 @@ public partial class LogViewerControl : WpfUserControl
                 var scrollViewer = FindScrollViewer(Editor);
                 double savedOffset = scrollViewer?.VerticalOffset ?? 0;
                 Editor.Document.Text = result.FilteredText;
+                _activeLineMap = result.LineMap;
                 _lineNumberMargin.SetLineMap(result.LineMap);
 
                 if (_state.AutoScroll)
@@ -439,16 +442,44 @@ public partial class LogViewerControl : WpfUserControl
 
     public void ShowGoToLineDialog()
     {
-        var dialog = new GoToLineDialog(Editor.Document.LineCount)
+        int maxLine = _activeLineMap is not null ? CountOriginalLines() : Editor.Document.LineCount;
+        var dialog = new GoToLineDialog(maxLine)
         {
             Owner = Window.GetWindow(this)
         };
         if (dialog.ShowDialog() == true)
         {
-            Editor.ScrollToLine(dialog.LineNumber);
-            var line = Editor.Document.GetLineByNumber(dialog.LineNumber);
+            int docLine = _activeLineMap is not null
+                ? FindFilteredLine(_activeLineMap, dialog.LineNumber)
+                : dialog.LineNumber;
+            Editor.ScrollToLine(docLine);
+            var line = Editor.Document.GetLineByNumber(docLine);
             Editor.TextArea.Caret.Offset = line.Offset;
         }
+    }
+
+    private int CountOriginalLines()
+    {
+        var text = _state.OriginalText;
+        if (text.Length == 0) return 0;
+        int count = 1;
+        foreach (char c in text)
+            if (c == '\n') count++;
+        return count;
+    }
+
+    /// <summary>
+    /// Returns the 1-based filtered document line whose original line number is >= targetOriginalLine.
+    /// Falls back to the last filtered line if the target is past the end.
+    /// </summary>
+    private static int FindFilteredLine(int[] lineMap, int targetOriginalLine)
+    {
+        for (int i = 0; i < lineMap.Length; i++)
+        {
+            if (lineMap[i] >= targetOriginalLine)
+                return i + 1;
+        }
+        return lineMap.Length;
     }
 
     private void DrawTicks()
@@ -642,11 +673,24 @@ public partial class LogViewerControl : WpfUserControl
         }, DispatcherPriority.Loaded);
     }
 
+    private void AutoGoToLineBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!int.TryParse(AutoGoToLineBox.Text, out int rawLine)) return;
+        int docLine = _activeLineMap is not null
+            ? FindFilteredLine(_activeLineMap, rawLine)
+            : rawLine;
+        if (docLine < 1 || docLine > Editor.Document.LineCount) return;
+        Editor.ScrollToLine(docLine);
+        var line = Editor.Document.GetLineByNumber(docLine);
+        Editor.TextArea.Caret.Offset = line.Offset;
+    }
+
     private void ShowSearchBarBtn_Click(object sender, RoutedEventArgs e)
     {
         if (SearchBar.Visibility != Visibility.Visible)
             ToggleSearch();
     }
+
 
     private void SearchCloseBtn_Click(object sender, RoutedEventArgs e)
     {

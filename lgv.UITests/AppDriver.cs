@@ -377,6 +377,25 @@ internal sealed class AppDriver : IDisposable
             ?.Current.Name ?? "";
     }
 
+    /// <summary>
+    /// Navigates the current viewer to the given raw (original) file line number.
+    /// Uses the hidden AutoGoToLineBox TextBox that accepts a raw line number via ValuePattern
+    /// and triggers the same FindFilteredLine → ScrollToLine logic as the Go To Line dialog.
+    /// </summary>
+    public void GoToLine(int lineNumber)
+    {
+        var el = _window.FindFirst(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.AutomationIdProperty, "AutoGoToLineBox"))
+            ?? throw new InvalidOperationException("AutoGoToLineBox automation element not found.");
+
+        if (!el.TryGetCurrentPattern(ValuePattern.Pattern, out object? vp) || vp is not ValuePattern valuePattern)
+            throw new InvalidOperationException("AutoGoToLineBox does not support ValuePattern.");
+
+        valuePattern.SetValue(lineNumber.ToString());
+        // Allow one render cycle for ScrollToLine to complete and HelpText to update.
+        Thread.Sleep(200);
+    }
+
     public void Dispose()
     {
         try

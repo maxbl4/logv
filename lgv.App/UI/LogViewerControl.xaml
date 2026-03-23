@@ -138,5 +138,14 @@
                          KeyDown="SearchBox_KeyDown"/>
             </DockPanel>
         </Border>
+        <!-- Hidden automation element: setting a raw line number here navigates the editor. -->
+        <TextBox x:Name="AutoGoToLineBox"
+                 AutomationProperties.AutomationId="AutoGoToLineBox"
+                 Grid.Row="0"
+                 Width="1" Height="1"
+                 Opacity="0"
+                 IsTabStop="False"
+                 HorizontalAlignment="Left" VerticalAlignment="Top"
+                 TextChanged="AutoGoToLineBox_TextChanged"/>
     </Grid>
 </UserControl>

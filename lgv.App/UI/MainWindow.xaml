@@ -73,6 +73,7 @@
                           Click="ToggleDirWatchMenu_Click"/>
                 <Separator/>
                 <MenuItem Header="Go To _Line..." InputGestureText="Ctrl+G"
+                          AutomationProperties.AutomationId="GoToLineMenuItem"
                           Click="GoToLineMenu_Click"/>
             </MenuItem>
             <MenuItem Header="_Search">
@@ -162,13 +163,20 @@
                         ItemContainerStyle="{StaticResource DarkTabItemStyle}"
                         SelectionChanged="TabControl_SelectionChanged"/>
 
-            <!-- 1×1 pixel button for UI-test automation: shows the global filter panel. -->
+            <!-- 1×1 pixel buttons for UI-test automation. -->
             <Button x:Name="ShowFilterPanelBtn"
                     Grid.Row="0"
                     Width="1" Height="1"
                     IsTabStop="False" Focusable="False"
                     HorizontalAlignment="Left" VerticalAlignment="Top"
                     Click="ShowFilterPanelBtn_Click"/>
+            <Button x:Name="GoToLineBtn"
+                    AutomationProperties.AutomationId="GoToLineBtn"
+                    Grid.Row="0"
+                    Width="1" Height="1"
+                    IsTabStop="False" Focusable="False"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Click="GoToLineBtn_Click"/>
 
             <!-- Global filter splitter -->
             <GridSplitter x:Name="GlobalFilterSplitter"
