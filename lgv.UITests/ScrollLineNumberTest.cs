@@ -13,8 +13,8 @@ public sealed class ScrollLineNumberTest
     private static string ExePath([CallerFilePath] string? src = null)
     {
         string dir = Path.GetDirectoryName(src)!;
-        string debug   = Path.GetFullPath(Path.Combine(dir, "..", "lgv.App", "bin", "x64", "Debug",   "net10.0-windows", "lgv.exe"));
-        string release = Path.GetFullPath(Path.Combine(dir, "..", "lgv.App", "bin", "x64", "Release", "net10.0-windows", "lgv.exe"));
+        string debug   = Path.GetFullPath(Path.Combine(dir, "..", "lgv.App", "bin", "x64", "Debug",   "net10.0-windows", "win-x64", "lgv.exe"));
+        string release = Path.GetFullPath(Path.Combine(dir, "..", "lgv.App", "bin", "x64", "Release", "net10.0-windows", "win-x64", "lgv.exe"));
         if (File.Exists(debug))   return debug;
         if (File.Exists(release)) return release;
         throw new FileNotFoundException($"lgv.exe not found. Build first.\nLooked at: {debug}");

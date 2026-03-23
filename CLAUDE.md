@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test
 
 ```bash
-# Build (default Debug x64)
+# Build (default Debug x64, self-contained)
 dotnet build
 
 # Run unit tests
@@ -15,17 +15,19 @@ dotnet test lgv.Tests
 dotnet test lgv.Tests -k "NoPatterns_ReturnsOriginalTextUnchanged"
 
 # UI tests require the app to be built first
-dotnet build -c Debug -p:Platform=x64 lgv.App/lgv.csproj
+dotnet build -c Debug lgv.App/lgv.csproj
 dotnet test lgv.UITests
 
 # Run a single UI test by class name
 dotnet test lgv.UITests -k "LineNumberDisplayTests"
 
-# Release publish (self-contained single exe)
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+# Release publish (bundles into single file)
+dotnet publish -c Release lgv.App/lgv.csproj
 ```
 
-All projects target `net10.0-windows`. The solution defaults to `x64` platform. UI tests locate the exe at `../lgv.App/bin/x64/Debug/net10.0-windows/lgv.exe`.
+All projects target `net10.0-windows`. The app project has `RuntimeIdentifier=win-x64` and `SelfContained=true` set in the csproj, so no `-r` or `--self-contained` flags are needed at the command line. `PublishSingleFile=true` is also set in the csproj and takes effect during `dotnet publish`.
+
+`dotnet build` output lands at `lgv.App/bin/x64/Debug/net10.0-windows/win-x64/lgv.exe`. UI tests probe that path (falling back to Release).
 
 ## Architecture
 

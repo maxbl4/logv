@@ -8,7 +8,7 @@ namespace lgv.UITests;
 /// and verify line numbers displayed in the margin.
 ///
 /// Prerequisites:
-///   - Build lgv.App in Debug|x64 before running: dotnet build -c Debug lgv.App/lgv.csproj
+///   - Build lgv.App before running: dotnet build -c Debug lgv.App/lgv.csproj
 ///   - Tests run on Windows with a live desktop session (not headless).
 /// </summary>
 public sealed class LineNumberDisplayTests : IDisposable
@@ -23,16 +23,16 @@ public sealed class LineNumberDisplayTests : IDisposable
         string thisDir = ThisSourceDir();
         // MSBuild places the output under bin\<Platform>\<Configuration>\<TFM>\ when Platform is set.
         string candidate = Path.GetFullPath(
-            Path.Combine(thisDir, "..", "lgv.App", "bin", "x64", "Debug", "net10.0-windows", "lgv.exe"));
+            Path.Combine(thisDir, "..", "lgv.App", "bin", "x64", "Debug", "net10.0-windows", "win-x64", "lgv.exe"));
 
         if (!File.Exists(candidate))
         {
             string release = Path.GetFullPath(
-                Path.Combine(thisDir, "..", "lgv.App", "bin", "x64", "Release", "net10.0-windows", "lgv.exe"));
+                Path.Combine(thisDir, "..", "lgv.App", "bin", "x64", "Release", "net10.0-windows", "win-x64", "lgv.exe"));
             if (File.Exists(release)) return release;
 
             throw new FileNotFoundException(
-                $"lgv.exe not found. Build lgv.App first (dotnet build -c Debug -p:Platform=x64).\nLast tried: {candidate}");
+                $"lgv.exe not found. Build lgv.App first (dotnet build -c Debug lgv.App/lgv.csproj).\nLast tried: {candidate}");
         }
 
         return candidate;
