@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Rules
+
+After every code change, run all tests and ensure they pass before considering the task done:
+```bash
+dotnet build lgv.App/lgv.csproj -c Debug && dotnet test lgv.Tests && dotnet test lgv.UITests
+```
+
 ## Build & Test
 
 ```bash
